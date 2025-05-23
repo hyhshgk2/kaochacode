@@ -117,6 +117,39 @@
         .point-selection-group div { margin-bottom: 10px; }
         .point-selection-group label { margin-bottom: 3px;}
 
+        .point-list-area {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 5px;
+            margin-top: -5px; /* Align better with other fields */
+            margin-bottom: 15px;
+        }
+        .point-list-area .point-option {
+            padding: 8px 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            white-space: normal; /* Allow text wrapping */
+            word-break: break-word; /* Break long words if necessary */
+        }
+        .point-list-area .point-option:last-child {
+            border-bottom: none;
+        }
+        .point-list-area .point-option:hover {
+            background-color: #f0f0f0;
+        }
+        .point-list-area .point-option.selected {
+            background-color: #3498db;
+            color: white;
+            font-weight: bold;
+        }
+        .point-list-area .no-points {
+            padding: 8px 10px;
+            color: #777;
+            font-style: italic;
+        }
+
 
         .hidden {
             display: none;
@@ -186,8 +219,11 @@
                         <select id="editL2CategorySelect" required disabled></select>
                     </div>
                     <div>
-                        <label for="editPointSelect">具体要点:</label>
-                        <select id="editPointSelect" required disabled></select>
+                        <label for="editPointListArea">具体要点:</label>
+                        <div id="editPointListArea" class="point-list-area">
+                            <p class="no-points">-- 先选择二级分类 --</p>
+                        </div>
+                        <input type="hidden" id="editSelectedPointId" required>
                     </div>
                 </div>
                 <div>
@@ -236,8 +272,11 @@
                         <select id="addL2CategorySelect" required disabled></select>
                     </div>
                     <div>
-                        <label for="addPointSelect">具体要点:</label>
-                        <select id="addPointSelect" required disabled></select>
+                        <label for="addPointListArea">具体要点:</label>
+                        <div id="addPointListArea" class="point-list-area">
+                             <p class="no-points">-- 先选择二级分类 --</p>
+                        </div>
+                        <input type="hidden" id="addSelectedPointId" required>
                     </div>
                 </div>
                 <div>
@@ -341,6 +380,7 @@
             }, 5000); 
         }
 
+        // --- Hierarchical Point Selection Logic ---
         function getL1Categories() {
             const l1Categories = {};
             allInspectionPointsData.forEach(point => {
@@ -372,10 +412,7 @@
             selectElement.innerHTML = `<option value="">-- ${placeholder} --</option>`;
             options.forEach(opt => {
                 const optionElement = document.createElement('option');
-                if (typeof opt === 'object' && opt.hasOwnProperty('id') && opt.hasOwnProperty('content')) { 
-                    optionElement.value = opt.id;
-                    optionElement.textContent = `${opt.id}. ${opt.content.substring(0, 70)}...`;
-                } else if (typeof opt === 'object' && opt.hasOwnProperty('code') && opt.hasOwnProperty('name')) { 
+                if (typeof opt === 'object' && opt.hasOwnProperty('code') && opt.hasOwnProperty('name')) { 
                     optionElement.value = opt.code;
                     optionElement.textContent = `${opt.code} ${opt.name}`;
                 }
@@ -383,32 +420,67 @@
             });
             selectElement.disabled = options.length === 0;
         }
+        
+        function renderPointSelectionList(areaId, hiddenInputId, points, selectedPointId) {
+            const area = document.getElementById(areaId);
+            const hiddenInput = document.getElementById(hiddenInputId);
+            area.innerHTML = ''; // Clear previous points
+            hiddenInput.value = ''; // Clear selected point
 
-        function setupPointSelectors(l1SelectId, l2SelectId, pointSelectId, initialL1, initialL2, initialPointId) {
+            if (!points || points.length === 0) {
+                area.innerHTML = '<p class="no-points">-- 无具体要点 --</p>';
+                return;
+            }
+
+            points.forEach(point => {
+                const pointDiv = document.createElement('div');
+                pointDiv.className = 'point-option';
+                pointDiv.textContent = `${point.id}. ${point.content}`;
+                pointDiv.setAttribute('data-point-id', point.id);
+
+                if (selectedPointId && parseInt(selectedPointId) === point.id) {
+                    pointDiv.classList.add('selected');
+                    hiddenInput.value = point.id;
+                }
+
+                pointDiv.onclick = function() {
+                    // Remove 'selected' from previously selected item in this list
+                    const currentSelected = area.querySelector('.point-option.selected');
+                    if (currentSelected) {
+                        currentSelected.classList.remove('selected');
+                    }
+                    // Add 'selected' to clicked item
+                    this.classList.add('selected');
+                    hiddenInput.value = this.getAttribute('data-point-id');
+                };
+                area.appendChild(pointDiv);
+            });
+        }
+
+
+        function setupPointSelectors(l1SelectId, l2SelectId, pointListAreaId, pointHiddenInputId, initialL1, initialL2, initialPointId) {
             const l1Select = document.getElementById(l1SelectId);
             const l2Select = document.getElementById(l2SelectId);
-            const pointSelect = document.getElementById(pointSelectId);
-
+            
             const l1Categories = getL1Categories();
             populateSelectWithOptions(l1Select, l1Categories, "选择一级分类");
             if (initialL1) l1Select.value = initialL1;
 
-
             l1Select.onchange = function() {
                 const selectedL1 = this.value;
-                populateSelectWithOptions(pointSelect, [], "先选二级分类"); // Clear points
+                renderPointSelectionList(pointListAreaId, pointHiddenInputId, [], null); // Clear points
                 if (selectedL1) {
                     const l2Categories = getL2Categories(selectedL1);
                     populateSelectWithOptions(l2Select, l2Categories, "选择二级分类");
-                    if (initialL1 === selectedL1 && initialL2) { // If pre-selecting L2 for the chosen L1
+                    if (initialL1 === selectedL1 && initialL2) { 
                         l2Select.value = initialL2;
-                        l2Select.dispatchEvent(new Event('change')); // Trigger change on L2
+                        l2Select.dispatchEvent(new Event('change')); 
                     } else {
-                         populateSelectWithOptions(pointSelect, [], "先选二级分类"); // Ensure points are cleared if L2 is not pre-selected or L1 changed
+                         renderPointSelectionList(pointListAreaId, pointHiddenInputId, [], null);
                     }
                 } else {
                     populateSelectWithOptions(l2Select, [], "先选一级分类");
-                    populateSelectWithOptions(pointSelect, [], "先选二级分类");
+                    renderPointSelectionList(pointListAreaId, pointHiddenInputId, [], null);
                 }
             };
 
@@ -417,20 +489,21 @@
                 const selectedL2 = this.value;
                 if (selectedL1 && selectedL2) {
                     const points = getPoints(selectedL1, selectedL2);
-                    populateSelectWithOptions(pointSelect, points, "选择具体要点");
-                     if (initialL1 === selectedL1 && initialL2 === selectedL2 && initialPointId) {
-                        pointSelect.value = initialPointId;
-                     }
+                    let pointToSelect = null;
+                    if (initialL1 === selectedL1 && initialL2 === selectedL2 && initialPointId) {
+                       pointToSelect = initialPointId;
+                    }
+                    renderPointSelectionList(pointListAreaId, pointHiddenInputId, points, pointToSelect);
                 } else {
-                    populateSelectWithOptions(pointSelect, [], "先选二级分类");
+                    renderPointSelectionList(pointListAreaId, pointHiddenInputId, [], null);
                 }
             };
             
             if (initialL1) {
                 l1Select.dispatchEvent(new Event('change'));
-            } else { // Ensure L2 and Point selects are initially disabled if no L1 is set
+            } else { 
                 populateSelectWithOptions(l2Select, [], "先选一级分类");
-                populateSelectWithOptions(pointSelect, [], "先选二级分类");
+                renderPointSelectionList(pointListAreaId, pointHiddenInputId, [], null);
             }
         }
 
@@ -586,81 +659,58 @@
             });
         }
         
-        // --- Smart Content Summary for Filename ---
         function getSmartContentSummary(pointContent, imageExportDesc, maxLength = 20) {
             if (!pointContent) return '未知内容';
             const defaultSummary = pointContent.substring(0, maxLength);
-
-            if (!imageExportDesc || imageExportDesc.trim() === '') {
-                return defaultSummary;
-            }
-
+            if (!imageExportDesc || imageExportDesc.trim() === '') return defaultSummary;
             const desc = imageExportDesc.trim();
-            // Prioritize longer, more specific terms from the description
             let searchTerms = [desc]; 
             if (desc.includes('，') || desc.includes('、') || desc.includes('；') || desc.includes('。')) {
                 desc.split(/[，、；。]/g).forEach(term => {
                     const cleanedTerm = term.trim();
                     if (cleanedTerm.length > 1 && !searchTerms.includes(cleanedTerm)) searchTerms.push(cleanedTerm);
                 });
-            } else if (desc.length > 6) { // If no punctuation, try parts of longer descriptions
+            } else if (desc.length > 6) { 
                 searchTerms.push(desc.substring(0, Math.ceil(desc.length * 0.6)));
                 searchTerms.push(desc.substring(0, Math.ceil(desc.length * 0.4)));
             }
-             // Remove duplicates and sort by length descending to try longer matches first
             searchTerms = [...new Set(searchTerms)].filter(term => term.length > 0).sort((a, b) => b.length - a.length);
-
 
             for (const term of searchTerms) {
                 if (term.length < 2 && searchTerms.length > 1) continue; 
-
                 const startIndex = pointContent.indexOf(term);
                 if (startIndex !== -1) {
                     const termLength = term.length;
-                    const contextNeeded = Math.max(0, maxLength - termLength); // Ensure non-negative
+                    const contextNeeded = Math.max(0, maxLength - termLength);
                     const beforeContext = Math.floor(contextNeeded / 2);
                     const afterContext = Math.ceil(contextNeeded / 2);
-
                     let snippetStart = Math.max(0, startIndex - beforeContext);
                     let snippetEnd = Math.min(pointContent.length, startIndex + termLength + afterContext);
-                    
                     let extractedSnippet = pointContent.substring(snippetStart, snippetEnd);
-
                     if (extractedSnippet.length < maxLength && extractedSnippet.length < pointContent.length) {
-                        if (snippetStart === 0) { // Expand right if at start
-                            snippetEnd = Math.min(pointContent.length, snippetEnd + (maxLength - extractedSnippet.length));
-                        } else if (snippetEnd === pointContent.length) { // Expand left if at end
-                            snippetStart = Math.max(0, snippetStart - (maxLength - extractedSnippet.length));
-                        } // Could add logic to expand both sides if in middle and short
+                        if (snippetStart === 0) snippetEnd = Math.min(pointContent.length, snippetEnd + (maxLength - extractedSnippet.length));
+                        else if (snippetEnd === pointContent.length) snippetStart = Math.max(0, snippetStart - (maxLength - extractedSnippet.length));
                         extractedSnippet = pointContent.substring(snippetStart, snippetEnd);
                     }
-                    
                     if (extractedSnippet.length > maxLength) {
-                        const termIndexInSnippet = extractedSnippet.indexOf(term); // Re-check index in current snippet
+                        const termIndexInSnippet = extractedSnippet.indexOf(term);
                         if (termIndexInSnippet !== -1) {
-                            const idealStartInSnippet = Math.max(0, termIndexInSnippet - Math.floor((maxLength - termLength) / 2));
+                            const idealStartInSnippet = Math.max(0, termIndexInSnippet - Math.floor((maxLength - termLength) / 2) );
                             extractedSnippet = extractedSnippet.substring(idealStartInSnippet, idealStartInSnippet + maxLength);
-                        } else { // Term might have been cut off, just take start
-                            extractedSnippet = extractedSnippet.substring(0, maxLength);
-                        }
+                        } else extractedSnippet = extractedSnippet.substring(0, maxLength);
                     }
-                    // Trim leading/trailing punctuation from the final snippet
                     return extractedSnippet.replace(/^[，。；、\s]+|[，。；、\s]+$/g, '');
                 }
             }
             return defaultSummary; 
         }
 
-
         function generateExportFilename(record, pointInfo) {
             const pointNumber = pointInfo ? pointInfo.id : '未知序号';
-            
-            let pointContentSummary = getSmartContentSummary(pointInfo ? pointInfo.content : '', record.imageExportDescription, 20); // Max length 20 for this part
+            let pointContentSummary = getSmartContentSummary(pointInfo ? pointInfo.content : '', record.imageExportDescription, 20);
             pointContentSummary = pointContentSummary.replace(/[\\/:*?"<>|.\s#%&{}]/g, '_'); 
-
             let exportDesc = record.imageExportDescription || '无描述';
             exportDesc = exportDesc.replace(/[\\/:*?"<>|.\s#%&{}]/g, '_'); 
-
             let extension = '.jpg'; 
             if (record.imageName) { 
                 const originalExtMatch = record.imageName.match(/\.[0-9a-z]+$/i);
@@ -669,9 +719,7 @@
                 const typeParts = record.imageBlob.type.split('/');
                 if (typeParts.length === 2 && typeParts[0] === 'image') {
                     const extCandidate = typeParts[1].toLowerCase().replace('jpeg', 'jpg');
-                     if (extCandidate === 'png' || extCandidate === 'gif' || extCandidate === 'jpg' || extCandidate === 'webp') {
-                        extension = '.' + extCandidate;
-                    }
+                     if (['png', 'gif', 'jpg', 'webp'].includes(extCandidate)) extension = '.' + extCandidate;
                 }
             }
             return `${pointNumber}_${pointContentSummary}_${exportDesc}${extension}`;
@@ -680,30 +728,20 @@
         function downloadFile(blob, filename) { 
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.style.display = 'none'; // Important for Safari
+            a.style.display = 'none';
             a.href = url;
             a.download = filename;
             document.body.appendChild(a);
             a.click();
-            // setTimeout to allow download to start before revoking
-            setTimeout(() => {
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            }, 100);
+            setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
         }
-        
         const downloadImage = downloadFile; 
-
 
         async function loadAndRenderRecords() {
             try {
                 const records = await getAllRecords();
                 renderRecords(records);
-            } catch (error) {
-                console.error("加载记录失败:", error);
-                document.getElementById('recordsList').innerHTML = '<p>加载记录失败，请检查浏览器控制台。</p>';
-                 showStatusMessage('加载记录失败!', 'error');
-            }
+            } catch (error) { console.error("加载记录失败:", error); document.getElementById('recordsList').innerHTML = '<p>加载记录失败...</p>'; showStatusMessage('加载记录失败!', 'error');}
         }
 
         const addRecordForm = document.getElementById('addRecordForm');
@@ -719,53 +757,33 @@
                 newImageBlob = file; 
                 newImageName = file.name;
                 const reader = new FileReader();
-                reader.onload = function(e) {
-                    newImagePreview.src = e.target.result;
-                    newImagePreviewContainer.classList.remove('hidden');
-                }
+                reader.onload = (e) => { newImagePreview.src = e.target.result; newImagePreviewContainer.classList.remove('hidden'); }
                 reader.readAsDataURL(file);
             } else {
-                newImageBlob = null;
-                newImageName = null;
-                newImagePreview.src = "";
-                newImagePreviewContainer.classList.add('hidden');
+                newImageBlob = null; newImageName = null; newImagePreview.src = ""; newImagePreviewContainer.classList.add('hidden');
             }
         };
 
         addRecordForm.onsubmit = async function(event) {
             event.preventDefault();
-            const pointId = document.getElementById('addPointSelect').value; 
-            if (!pointId) {
-                showStatusMessage("请选择一个具体的考察要点!", 'error');
-                return;
-            }
+            const pointId = document.getElementById('addSelectedPointId').value; 
+            if (!pointId) { showStatusMessage("请选择一个具体的考察要点!", 'error'); return; }
             const record = {
                 pointId: parseInt(pointId),
                 evidenceType: document.querySelector('input[name="evidenceType"]:checked').value,
                 textEvidence: document.getElementById('textEvidence').value.trim(),
                 imageExportDescription: document.getElementById('imageExportDescription').value.trim(),
-                imageBlob: newImageBlob, 
-                imageName: newImageName, 
-                timestamp: new Date().toISOString()
+                imageBlob: newImageBlob, imageName: newImageName, timestamp: new Date().toISOString()
             };
-
             try {
                 await addRecord(record);
                 showStatusMessage('记录添加成功!', 'success');
                 addRecordForm.reset();
                 document.getElementById('addL1CategorySelect').value = "";
-                document.getElementById('addL1CategorySelect').dispatchEvent(new Event('change'));
-
-
-                newImageBlob = null;
-                newImageName = null;
-                newImagePreview.src = "";
-                newImagePreviewContainer.classList.add('hidden');
+                document.getElementById('addL1CategorySelect').dispatchEvent(new Event('change')); // This will clear L2 and Point List Area
+                newImageBlob = null; newImageName = null; newImagePreview.src = ""; newImagePreviewContainer.classList.add('hidden');
                 loadAndRenderRecords(); 
-            } catch (error) {
-                console.error("添加记录失败:", error);
-                showStatusMessage('添加记录失败!', 'error');
-            }
+            } catch (error) { console.error("添加记录失败:", error); showStatusMessage('添加记录失败!', 'error'); }
         };
 
         const editRecordSection = document.getElementById('editRecordSection');
@@ -775,51 +793,36 @@
         const editTextEvidenceTextarea = document.getElementById('editAlignedTextEvidence');
         const editImageExportDescriptionInput = document.getElementById('editAlignedImageExportDescription');
         const editImageFileInput = document.getElementById('editAlignedImageFile');
-        
         const editCurrentImagePreviewContainer = document.getElementById('editCurrentImagePreviewContainer');
         const editCurrentImagePreview = document.getElementById('editCurrentImagePreview');
         const editNewImagePreviewContainer = document.getElementById('editNewImagePreviewContainer');
         const editNewImagePreview = document.getElementById('editNewImagePreview');
         const removeCurrentImageButton = document.getElementById('removeCurrentImageButton');
         const cancelEditButton = document.getElementById('cancelEditButton');
-        
-        let editingImageBlob = null; 
-        let editingImageName = null;
-        let retainCurrentImage = true; 
+        let editingImageBlob = null; let editingImageName = null; let retainCurrentImage = true; 
 
         async function populateEditForm(recordIdToEdit) {
             try {
                 const record = await getRecordById(recordIdToEdit);
-                if (!record) {
-                    showStatusMessage("未找到要编辑的记录!", 'error'); return;
-                }
+                if (!record) { showStatusMessage("未找到要编辑的记录!", 'error'); return; }
                 editRecordIdInput.value = record.id;
-                
                 const pointData = allInspectionPointsData.find(p => p.id === parseInt(record.pointId));
                 if (pointData) {
-                    setupPointSelectors('editL1CategorySelect', 'editL2CategorySelect', 'editPointSelect', 
-                                        pointData.main_category_code, 
-                                        pointData.sub_category_code, 
+                    setupPointSelectors('editL1CategorySelect', 'editL2CategorySelect', 
+                                        'editPointListArea', 'editSelectedPointId',
+                                        pointData.main_category_code, pointData.sub_category_code, 
                                         record.pointId.toString());
                 } else { 
-                     setupPointSelectors('editL1CategorySelect', 'editL2CategorySelect', 'editPointSelect', null, null, null);
-                     // Attempt to set the final point value even if categories aren't found perfectly (edge case)
-                    const editPointSelectEl = document.getElementById('editPointSelect');
-                    if (editPointSelectEl) editPointSelectEl.value = record.pointId;
+                     setupPointSelectors('editL1CategorySelect', 'editL2CategorySelect', 
+                                         'editPointListArea', 'editSelectedPointId', null, null, null);
+                     document.getElementById('editSelectedPointId').value = record.pointId; // Try to set hidden input
                 }
-
-
                 document.querySelector(`input[name="editEvidenceType"][value="${record.evidenceType}"]`).checked = true;
                 editTextEvidenceTextarea.value = record.textEvidence || "";
                 editImageExportDescriptionInput.value = record.imageExportDescription || "";
-
-                editingImageBlob = null; 
-                editingImageName = null;
-                editImageFileInput.value = ""; 
-                editNewImagePreviewContainer.classList.add('hidden');
-                editNewImagePreview.src = "";
+                editingImageBlob = null; editingImageName = null; editImageFileInput.value = ""; 
+                editNewImagePreviewContainer.classList.add('hidden'); editNewImagePreview.src = "";
                 retainCurrentImage = true; 
-
                 if (record.imageBlob) {
                     const imageUrl = URL.createObjectURL(record.imageBlob);
                     editCurrentImagePreview.src = imageUrl;
@@ -831,42 +834,31 @@
                     editCurrentImagePreviewContainer.classList.add('hidden');
                     removeCurrentImageButton.classList.add('hidden');
                 }
-                
-                editRecordSection.classList.remove('hidden');
-                addRecordSectionDiv.classList.add('hidden'); 
+                editRecordSection.classList.remove('hidden'); addRecordSectionDiv.classList.add('hidden'); 
                 window.scrollTo(0, editRecordSection.offsetTop - 20); 
-            } catch (error) {
-                showStatusMessage("加载编辑数据失败: " + error, 'error');
-            }
+            } catch (error) { showStatusMessage("加载编辑数据失败: " + error, 'error'); }
         }
         
-        removeCurrentImageButton.onclick = function() {
-            retainCurrentImage = false;
-            editingImageBlob = null; 
-            editingImageName = null;
-            editCurrentImagePreviewContainer.classList.add('hidden');
-            editCurrentImagePreview.src = "";
+        removeCurrentImageButton.onclick = () => {
+            retainCurrentImage = false; editingImageBlob = null; editingImageName = null;
+            editCurrentImagePreviewContainer.classList.add('hidden'); editCurrentImagePreview.src = "";
             showStatusMessage("当前图片已标记为移除。保存更改后生效。", 'info');
         };
 
-        editImageFileInput.onchange = function(event) {
+        editImageFileInput.onchange = (event) => {
             const file = event.target.files[0];
             if (file) {
-                editingImageBlob = file;
-                editingImageName = file.name;
-                retainCurrentImage = false; 
+                editingImageBlob = file; editingImageName = file.name; retainCurrentImage = false; 
                 const reader = new FileReader();
-                reader.onload = function(e) {
-                    editNewImagePreview.src = e.target.result;
+                reader.onload = (e) => { 
+                    editNewImagePreview.src = e.target.result; 
                     editNewImagePreviewContainer.classList.remove('hidden');
                     editCurrentImagePreviewContainer.classList.add('hidden'); 
                 }
                 reader.readAsDataURL(file);
             } else { 
-                editingImageBlob = null;
-                editingImageName = null;
-                editNewImagePreviewContainer.classList.add('hidden');
-                editNewImagePreview.src = "";
+                editingImageBlob = null; editingImageName = null;
+                editNewImagePreviewContainer.classList.add('hidden'); editNewImagePreview.src = "";
                 if (retainCurrentImage && editRecordIdInput.value) {
                      getRecordById(parseInt(editRecordIdInput.value)).then(r => {
                         if(r && r.imageBlob) {
@@ -880,137 +872,76 @@
             }
         };
 
-        editRecordForm.onsubmit = async function(event) {
+        editRecordForm.onsubmit = async (event) => {
             event.preventDefault();
             const recordId = parseInt(editRecordIdInput.value);
-            const pointId = document.getElementById('editPointSelect').value; 
-            if (!pointId) {
-                showStatusMessage("请选择一个具体的考察要点!", 'error');
-                return;
-            }
-
+            const pointId = document.getElementById('editSelectedPointId').value; 
+            if (!pointId) { showStatusMessage("请选择一个具体的考察要点!", 'error'); return; }
             const updatedRecordData = {
-                id: recordId,
-                pointId: parseInt(pointId),
+                id: recordId, pointId: parseInt(pointId),
                 evidenceType: document.querySelector('input[name="editEvidenceType"]:checked').value,
                 textEvidence: editTextEvidenceTextarea.value.trim(),
                 imageExportDescription: editImageExportDescriptionInput.value.trim(),
                 timestamp: new Date().toISOString() 
             };
-
             if (editingImageBlob) { 
-                updatedRecordData.imageBlob = editingImageBlob;
-                updatedRecordData.imageName = editingImageName;
+                updatedRecordData.imageBlob = editingImageBlob; updatedRecordData.imageName = editingImageName;
             } else if (!retainCurrentImage) { 
-                updatedRecordData.imageBlob = null;
-                updatedRecordData.imageName = null;
+                updatedRecordData.imageBlob = null; updatedRecordData.imageName = null;
             } else {
                 const existingRecord = await getRecordById(recordId);
-                if (existingRecord) {
-                    updatedRecordData.imageBlob = existingRecord.imageBlob;
-                    updatedRecordData.imageName = existingRecord.imageName;
-                }
+                if (existingRecord) { updatedRecordData.imageBlob = existingRecord.imageBlob; updatedRecordData.imageName = existingRecord.imageName; }
             }
-            
             try {
                 await updateRecord(updatedRecordData);
                 showStatusMessage('记录更新成功!', 'success');
-                editRecordForm.reset();
-                editRecordSection.classList.add('hidden');
-                addRecordSectionDiv.classList.remove('hidden'); 
+                editRecordForm.reset(); editRecordSection.classList.add('hidden'); addRecordSectionDiv.classList.remove('hidden'); 
                 loadAndRenderRecords();
-            } catch (error) {
-                console.error("更新记录失败:", error);
-                showStatusMessage('更新记录失败!', 'error');
-            }
+            } catch (error) { console.error("更新记录失败:", error); showStatusMessage('更新记录失败!', 'error'); }
         };
         
-        cancelEditButton.onclick = function() {
-            editRecordForm.reset();
-            editRecordSection.classList.add('hidden');
-            addRecordSectionDiv.classList.remove('hidden');
-        };
+        cancelEditButton.onclick = () => { editRecordForm.reset(); editRecordSection.classList.add('hidden'); addRecordSectionDiv.classList.remove('hidden'); };
 
         const bulkExportButton = document.getElementById('bulkExportButton');
-        bulkExportButton.onclick = async function() {
-            if (typeof JSZip === "undefined") {
-                showStatusMessage("JSZip 库未能加载，无法进行批量导出。请检查网络连接或刷新页面。", 'error');
-                return;
-            }
-            if (!db) {
-                showStatusMessage("数据库未初始化!", 'error');
-                return;
-            }
-            bulkExportButton.disabled = true;
-            bulkExportButton.textContent = "正在处理...";
-
-            showStatusMessage("正在准备批量导出，请稍候...", 'info');
+        bulkExportButton.onclick = async () => {
+            if (typeof JSZip === "undefined") { showStatusMessage("JSZip 库未能加载...", 'error'); return; }
+            if (!db) { showStatusMessage("数据库未初始化!", 'error'); return; }
+            bulkExportButton.disabled = true; bulkExportButton.textContent = "正在处理...";
+            showStatusMessage("正在准备批量导出...", 'info');
             try {
                 const records = await getAllRecords();
                 const imageRecords = records.filter(r => r.imageBlob && r.imageBlob instanceof Blob);
-
-                if (imageRecords.length === 0) {
-                    showStatusMessage("没有找到可以导出的图片记录。", 'info');
-                    bulkExportButton.disabled = false;
-                    bulkExportButton.textContent = "批量导出所有图片 (ZIP)";
-                    return;
-                }
-
-                const zip = new JSZip();
-                let filesAdded = 0;
-
+                if (imageRecords.length === 0) { showStatusMessage("没有可导出的图片记录。", 'info'); return; }
+                const zip = new JSZip(); let filesAdded = 0;
                 for (const record of imageRecords) {
                     const pointInfo = allInspectionPointsData.find(p => p.id === parseInt(record.pointId));
                     const filename = generateExportFilename(record, pointInfo);
-                    zip.file(filename, record.imageBlob);
-                    filesAdded++;
+                    zip.file(filename, record.imageBlob); filesAdded++;
                 }
-                
                 if (filesAdded > 0) {
                     const content = await zip.generateAsync({type:"blob", compression: "DEFLATE", compressionOptions: {level: 6}});
                     downloadFile(content, "考察图片批量导出.zip");
                     showStatusMessage(`成功将 ${filesAdded} 张图片打包导出!`, 'success');
-                } else {
-                    showStatusMessage("没有有效图片被添加到压缩包。", 'info');
-                }
-
-            } catch (error) {
-                console.error("批量导出失败:", error);
-                showStatusMessage("批量导出图片失败: " + error.message, 'error');
-            } finally {
-                bulkExportButton.disabled = false;
-                bulkExportButton.textContent = "批量导出所有图片 (ZIP)";
-            }
+                } else showStatusMessage("没有有效图片被添加到压缩包。", 'info');
+            } catch (error) { console.error("批量导出失败:", error); showStatusMessage("批量导出图片失败: " + error.message, 'error'); } 
+            finally { bulkExportButton.disabled = false; bulkExportButton.textContent = "批量导出所有图片 (ZIP)"; }
         };
 
         const resetDataButton = document.getElementById('resetDataButton');
-        
         async function clearAllDataFromDB() {
             return new Promise((resolve, reject) => {
-                if (!db) {
-                    showStatusMessage("数据库未初始化!", 'error');
-                    reject("数据库未初始化");
-                    return;
-                }
+                if (!db) { showStatusMessage("数据库未初始化!", 'error'); reject("数据库未初始化"); return; }
                 const transaction = db.transaction([STORE_NAME], "readwrite");
                 const store = transaction.objectStore(STORE_NAME);
                 const request = store.clear();
-
-                request.onsuccess = function() {
-                    resolve();
-                };
-                request.onerror = function(event) {
-                    console.error("清空数据库失败: ", event.target.error);
-                    reject(event.target.error);
-                };
+                request.onsuccess = () => resolve();
+                request.onerror = (event) => { console.error("清空数据库失败: ", event.target.error); reject(event.target.error); };
             });
         }
-
-        resetDataButton.onclick = async function() {
+        resetDataButton.onclick = async () => {
             if (confirm("警告：您确定要删除所有考察记录和已上传的图片吗？此操作不可撤销！")) {
                 if (confirm("再次确认：真的要永久删除所有数据吗？")) {
-                    resetDataButton.disabled = true;
-                    resetDataButton.textContent = "正在重置...";
+                    resetDataButton.disabled = true; resetDataButton.textContent = "正在重置...";
                     try {
                         await clearAllDataFromDB();
                         showStatusMessage('所有数据已成功重置！', 'success');
@@ -1019,32 +950,21 @@
                             document.getElementById('addL1CategorySelect').value = "";
                             document.getElementById('addL1CategorySelect').dispatchEvent(new Event('change'));
                         }, 500); 
-                    } catch (error) {
-                        console.error("重置数据时发生错误: ", error);
-                        showStatusMessage('重置数据失败，详情请查看控制台。', 'error');
-                    } finally {
-                        resetDataButton.disabled = false;
-                        resetDataButton.textContent = "重置所有数据";
-                    }
+                    } catch (error) { console.error("重置数据时发生错误: ", error); showStatusMessage('重置数据失败...', 'error'); } 
+                    finally { resetDataButton.disabled = false; resetDataButton.textContent = "重置所有数据"; }
                 }
             }
         };
 
-
-        window.onload = async function() {
+        window.onload = async () => {
             try {
                 db = await initDB();
-                setupPointSelectors('addL1CategorySelect', 'addL2CategorySelect', 'addPointSelect');
-                setupPointSelectors('editL1CategorySelect', 'editL2CategorySelect', 'editPointSelect'); 
+                setupPointSelectors('addL1CategorySelect', 'addL2CategorySelect', 'addPointListArea', 'addSelectedPointId');
+                setupPointSelectors('editL1CategorySelect', 'editL2CategorySelect', 'editPointListArea', 'editSelectedPointId'); 
                 loadAndRenderRecords();
                 showStatusMessage('应用已就绪。', 'info');
-            } catch (error) {
-                console.error("应用初始化失败:", error);
-                document.getElementById('recordsList').innerHTML = '<p>应用初始化失败，请刷新页面或检查浏览器控制台。</p>';
-                showStatusMessage('应用初始化失败!', 'error');
-            }
+            } catch (error) { console.error("应用初始化失败:", error); document.getElementById('recordsList').innerHTML = '<p>应用初始化失败...</p>'; showStatusMessage('应用初始化失败!', 'error'); }
         };
-
     </script>
 </body>
 </html>
