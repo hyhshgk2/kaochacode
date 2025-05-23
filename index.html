@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>实地考察记录 (纯前端版)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 15px;
+            background-color: #f4f7f6;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #2c3e50;
+            margin-top: 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input[type="text"],
+        input[type="file"],
+        textarea,
+        select {
+            width: calc(100% - 22px);
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 1em;
+            background-color: #fff; 
+        }
+        select:disabled {
+            background-color: #e9ecef;
+            opacity: 0.7;
+        }
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            padding: 10px 18px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.2s;
+            margin-right: 8px; 
+            margin-bottom: 8px; 
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button:disabled { 
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        button.danger {
+            background-color: #e74c3c;
+        }
+        button.danger:hover {
+            background-color: #c0392b;
+        }
+        button.secondary {
+            background-color: #7f8c8d;
+        }
+        button.secondary:hover {
+            background-color: #606f70;
+        }
+        button.warning {
+            background-color: #f39c12;
+        }
+        button.warning:hover {
+            background-color: #e67e22;
+        }
+        .record-item {
+            background-color: #ecf0f1;
+            border: 1px solid #bdc3c7;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+        }
+        .record-item h3 {
+            margin-top: 0;
+            color: #2980b9;
+        }
+        .record-item img.preview {
+            max-width: 100%;
+            height: auto;
+            max-height: 200px;
+            margin-top: 10px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        .form-section, .management-section {
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px dashed #eee;
+        }
+        .point-selection-group div { margin-bottom: 10px; }
+        .point-selection-group label { margin-bottom: 3px;}
+
+
+        .hidden {
+            display: none;
+        }
+        .radio-group label {
+            display: inline-block;
+            margin-right: 15px;
+            font-weight: normal;
+        }
+        .radio-group input[type="radio"] {
+            width: auto;
+            margin-right: 5px;
+        }
+        .file-info {
+            font-size: 0.9em;
+            color: #777;
+            margin-top: 0px;
+            margin-bottom: 5px;
+        }
+        #statusMessage {
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            display: none; 
+        }
+        #statusMessage.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        #statusMessage.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        #statusMessage.info {
+            background-color: #cce5ff;
+            color: #004085;
+            border: 1px solid #b8daff;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>实地考察记录 (纯前端版)</h1>
+
+        <div id="statusMessage"></div>
+
+        <div class="management-section">
+            <h2>管理操作</h2>
+            <button id="bulkExportButton" class="warning">批量导出所有图片 (ZIP)</button>
+            <button id="resetDataButton" class="danger">重置所有数据</button>
+        </div>
+
+        <div id="editRecordSection" class="form-section hidden">
+            <h2 id="editFormTitle">编辑记录</h2>
+            <form id="editRecordForm">
+                <input type="hidden" id="editRecordId">
+                <div class="point-selection-group">
+                    <div>
+                        <label for="editL1CategorySelect">一级分类:</label>
+                        <select id="editL1CategorySelect" required></select>
+                    </div>
+                    <div>
+                        <label for="editL2CategorySelect">二级分类:</label>
+                        <select id="editL2CategorySelect" required disabled></select>
+                    </div>
+                    <div>
+                        <label for="editPointSelect">具体要点:</label>
+                        <select id="editPointSelect" required disabled></select>
+                    </div>
+                </div>
+                <div>
+                    <label>证据类型:</label>
+                    <div class="radio-group">
+                        <label><input type="radio" name="editEvidenceType" value="positive" checked> 积极</label>
+                        <label><input type="radio" name="editEvidenceType" value="negative"> 消极</label>
+                    </div>
+                </div>
+                <div>
+                    <label for="editAlignedTextEvidence">文字证据:</label>
+                    <textarea id="editAlignedTextEvidence"></textarea>
+                </div>
+                <div>
+                    <label for="editAlignedImageExportDescription">图片导出描述 (用于文件名):</label>
+                    <input type="text" id="editAlignedImageExportDescription" placeholder="例如：大厅宣传栏照片">
+                </div>
+                <div>
+                    <label for="editAlignedImageFile">替换图片证据 (可选):</label>
+                    <input type="file" id="editAlignedImageFile" accept="image/*">
+                    <div id="editCurrentImagePreviewContainer">
+                        <p class="file-info">当前图片:</p>
+                        <img id="editCurrentImagePreview" class="preview" alt="当前图片预览">
+                        <button type="button" id="removeCurrentImageButton" class="secondary">移除当前图片</button>
+                    </div>
+                     <div id="editNewImagePreviewContainer" class="hidden">
+                        <p class="file-info">新图片预览:</p>
+                        <img id="editNewImagePreview" class="preview" alt="新图片预览">
+                    </div>
+                </div>
+                <button type="submit">保存更改</button>
+                <button type="button" id="cancelEditButton" class="secondary">取消编辑</button>
+            </form>
+        </div>
+
+        <div id="addRecordSection" class="form-section">
+            <h2>添加新记录</h2>
+            <form id="addRecordForm">
+                 <div class="point-selection-group">
+                    <div>
+                        <label for="addL1CategorySelect">一级分类:</label>
+                        <select id="addL1CategorySelect" required></select>
+                    </div>
+                    <div>
+                        <label for="addL2CategorySelect">二级分类:</label>
+                        <select id="addL2CategorySelect" required disabled></select>
+                    </div>
+                    <div>
+                        <label for="addPointSelect">具体要点:</label>
+                        <select id="addPointSelect" required disabled></select>
+                    </div>
+                </div>
+                <div>
+                    <label>证据类型:</label>
+                    <div class="radio-group">
+                        <label><input type="radio" name="evidenceType" value="positive" checked> 积极</label>
+                        <label><input type="radio" name="evidenceType" value="negative"> 消极</label>
+                    </div>
+                </div>
+                <div>
+                    <label for="textEvidence">文字证据:</label>
+                    <textarea id="textEvidence"></textarea>
+                </div>
+                <div>
+                    <label for="imageExportDescription">图片导出描述 (用于文件名):</label>
+                    <input type="text" id="imageExportDescription" placeholder="例如：大厅宣传栏照片">
+                </div>
+                <div>
+                    <label for="imageFile">图片证据:</label>
+                    <input type="file" id="imageFile" accept="image/*">
+                    <div id="newImagePreviewContainer" class="hidden">
+                         <p class="file-info">图片预览:</p>
+                         <img id="newImagePreview" class="preview" alt="新图片预览">
+                    </div>
+                </div>
+                <button type="submit">添加记录</button>
+            </form>
+        </div>
+
+        <h2>已存记录</h2>
+        <div id="recordsList">
+            <p>正在加载记录...</p>
+        </div>
+    </div>
+
+    <script>
+        const DB_NAME = "InspectionAppDB_v2";
+        const DB_VERSION = 2; 
+        const STORE_NAME = "records";
+        let db;
+
+        const allInspectionPointsData = [
+            {"id": 1, "unique_id": "A1b1p1", "main_category_code": "A1", "main_category_name": "办园方向", "sub_category_code": "b1", "sub_category_name": "党建工作", "content": "健全党组织对幼儿园工作领导的制度机制，以政治建设为统领，加强幼儿园领导班子建设，推进党的工作与保育教育工作紧密融合。"},
+            {"id": 2, "unique_id": "A1b1p2", "main_category_code": "A1", "main_category_name": "办园方向", "sub_category_code": "b1", "sub_category_name": "党建工作", "content": "落实幼儿园党的组织和党的工作全覆盖，加强教师思想政治工作，落实党风廉政建设责任制和意识形态工作责任制，坚持党建带团建，充分发挥工会、共青团等群团组织的作用。"},
+            {"id": 3, "unique_id": "A1b1p3", "main_category_code": "A1", "main_category_name": "办园方向", "sub_category_code": "b1", "sub_category_name": "党建工作", "content": "坚持社会主义办园方向，积极研究制定幼儿园发展规划和年度工作计划。"},
+            {"id": 4, "unique_id": "A1b2p4", "main_category_code": "A1", "main_category_name": "办园方向", "sub_category_code": "b2", "sub_category_name": "品德启蒙", "content": "全面贯彻党的教育方针，落实立德树人根本任务，坚持保育教育结合，将培育和践行社会主义核心价值观融入保育教育全过程，注重从小做起、从点滴做起，为培养德智体美劳全面发展的社会主义建设者和接班人奠基。"},
+            {"id": 5, "unique_id": "A1b2p5", "main_category_code": "A1", "main_category_name": "办园方向", "sub_category_code": "b2", "sub_category_name": "品德启蒙", "content": "注重幼儿良好品德和行为习惯养成，潜移默化贯穿于一日生活和各项活动，创设温暖、关爱、平等的集体生活氛围，建立积极和谐的同伴关系；帮助幼儿学会生活，养成自己的事情自己做的习惯，培育幼儿爱父母长辈、爱老师同伴、爱集体、爱家乡、爱党爱国的情感。"},
+            {"id": 6, "unique_id": "A1b3p6", "main_category_code": "A1", "main_category_name": "办园方向", "sub_category_code": "b3", "sub_category_name": "科学理念", "content": "遵循幼儿身心发展规律和学前教育规律，尊重幼儿个体差异，坚持以游戏为基本活动，珍视生活和游戏的独特教育价值。"},
+            {"id": 7, "unique_id": "A1b3p7", "main_category_code": "A1", "main_category_name": "办园方向", "sub_category_code": "b3", "sub_category_name": "科学理念", "content": "充分尊重和保护幼儿的好奇心和探究兴趣，相信每一个幼儿都是积极主动、有能力的学习者，最大限度地支持和满足幼儿通过直接感知、实际操作和亲身体验获取经验的需要。不提前教授小学阶段的课程内容，不搞不切实际的特色课程。"},
+            {"id": 8, "unique_id": "A2b4p8", "main_category_code": "A2", "main_category_name": "保育与安全", "sub_category_code": "b4", "sub_category_name": "卫生保健", "content": "膳食营养、卫生消毒、疾病预防、健康检查等工作制度和岗位职责健全，并认真抓好落实。"},
+            {"id": 9, "unique_id": "A2b4p9", "main_category_code": "A2", "main_category_name": "保育与安全", "sub_category_code": "b4", "sub_category_name": "卫生保健", "content": "科学制定带量食谱，确保幼儿膳食营养均衡，引导幼儿养成良好饮食习惯。"},
+            {"id": 10, "unique_id": "A2b4p10", "main_category_code": "A2", "main_category_name": "保育与安全", "sub_category_code": "b4", "sub_category_name": "卫生保健", "content": "教职工具有传染病防控常识，认真落实传染病报告制度，具备快速应对和防控处置能力。"},
+            {"id": 11, "unique_id": "A2b4p11", "main_category_code": "A2", "main_category_name": "保育与安全", "sub_category_code": "b4", "sub_category_name": "卫生保健", "content": "按资质要求配备专（兼）职卫生保健人员，认真做好幼儿膳食指导、晨午检和健康观察、疾病预防、幼儿生长发育监测等工作。"},
+            {"id": 12, "unique_id": "A2b5p12", "main_category_code": "A2", "main_category_name": "保育与安全", "sub_category_code": "b5", "sub_category_name": "生活照料", "content": "帮助幼儿建立合理生活常规，引导幼儿根据需要自主饮水、盥洗、如厕、增减衣物等，养成良好的生活卫生习惯。"},
+            {"id": 13, "unique_id": "A2b5p13", "main_category_code": "A2", "main_category_name": "保育与安全", "sub_category_code": "b5", "sub_category_name": "生活照料", "content": "指导幼儿进行餐前准备、餐后清洁、图画书与玩具整理等自我服务，引导幼儿养成劳动习惯，增强环保意识、集体责任感。"},
+            {"id": 14, "unique_id": "A2b5p14", "main_category_code": "A2", "main_category_name": "保育与安全", "sub_category_code": "b5", "sub_category_name": "生活照料", "content": "制定并实施与幼儿身体发展相适应的体格锻炼计划，保证每天户外活动时间不少于2小时，体育活动时间不少于1小时。"},
+            {"id": 15, "unique_id": "A2b5p15", "main_category_code": "A2", "main_category_name": "保育与安全", "sub_category_code": "b5", "sub_category_name": "生活照料", "content": "重视有特殊需要的幼儿，尽可能创造条件让幼儿参与班级的各项活动，同时给予必要的照料。根据需要及时与家长沟通，帮助幼儿获得专业的康复指导与治疗。"},
+            {"id": 16, "unique_id": "A2b6p16", "main_category_code": "A2", "main_category_name": "保育与安全", "sub_category_code": "b6", "sub_category_name": "安全防护", "content": "认真落实幼儿园各项安全管理制度和措施，每学期开学前分析研判潜在的安全风险，有针对性地完善安全管理措施。"},
+            {"id": 17, "unique_id": "A2b6p17", "main_category_code": "A2", "main_category_name": "保育与安全", "sub_category_code": "b6", "sub_category_name": "安全防护", "content": "保教人员具有安全保护意识，做好环境、设施设备、玩具材料等方面的日常检查维护，及时消除安全隐患。发生意外时，优先保护幼儿的安全。"},
+            {"id": 18, "unique_id": "A2b6p18", "main_category_code": "A2", "main_category_name": "保育与安全", "sub_category_code": "b6", "sub_category_name": "安全防护", "content": "幼儿园切实把安全教育融入幼儿一日生活，帮助幼儿学习判断环境、设施设备和玩具材料可能出现的安全风险，增强安全防范意识，提高自我保护能力。"},
+            {"id": 19, "unique_id": "A3b7p19", "main_category_code": "A3", "main_category_name": "教育过程", "sub_category_code": "b7", "sub_category_name": "活动组织", "content": "认真按照《幼儿园教育指导纲要》《3—6岁儿童学习与发展指南》要求，结合本园、班实际，每学期、每周制定科学合理的班级保教计划。"},
+            {"id": 20, "unique_id": "A3b7p20", "main_category_code": "A3", "main_category_name": "教育过程", "sub_category_code": "b7", "sub_category_name": "活动组织", "content": "一日活动安排相对稳定合理，并能根据幼儿的年龄特点、个体差异和活动需要做出灵活调整，避免活动安排频繁转换、幼儿消极等待。"},
+            {"id": 21, "unique_id": "A3b7p21", "main_category_code": "A3", "main_category_name": "教育过程", "sub_category_code": "b7", "sub_category_name": "活动组织", "content": "以游戏为基本活动，确保幼儿每天有充分的自主游戏时间，因地制宜为幼儿创设游戏环境，提供丰富适宜的游戏材料，支持幼儿探究、试错、重复等行为，与幼儿一起分享游戏经验。"},
+            {"id": 22, "unique_id": "A3b7p22", "main_category_code": "A3", "main_category_name": "教育过程", "sub_category_code": "b7", "sub_category_name": "活动组织", "content": "发现和支持幼儿有意义的学习，采用小组或集体的形式讨论幼儿感兴趣的话题，鼓励幼儿表达自己的观点，提出问题、分析解决问题，拓展提升幼儿日常生活和游戏中的经验。"},
+            {"id": 23, "unique_id": "A3b7p23", "main_category_code": "A3", "main_category_name": "教育过程", "sub_category_code": "b7", "sub_category_name": "活动组织", "content": "关注幼儿学习与发展的整体性，注重健康、语言、社会、科学、艺术等各领域有机整合，促进幼儿智力和非智力因素协调发展，寓教育于生活和游戏中。"},
+            {"id": 24, "unique_id": "A3b7p24", "main_category_code": "A3", "main_category_name": "教育过程", "sub_category_code": "b7", "sub_category_name": "活动组织", "content": "关注幼儿发展的连续性，注重幼小科学衔接。大班下学期采取多种形式，有针对性地帮助幼儿做好身心、生活、社会和学习等多方面的准备，建立对小学的积极期待和向往，促进幼儿顺利过渡。"},
+            {"id": 25, "unique_id": "A3b8p25", "main_category_code": "A3", "main_category_name": "教育过程", "sub_category_code": "b8", "sub_category_name": "师幼互动", "content": "教师保持积极乐观愉快的情绪状态，以亲切和蔼、支持性的态度和行为与幼儿互动，平等对待每一名幼儿。幼儿在一日活动中是自信、从容的，能放心大胆地表达真实情绪和不同观点。"},
+            {"id": 26, "unique_id": "A3b8p26", "main_category_code": "A3", "main_category_name": "教育过程", "sub_category_code": "b8", "sub_category_name": "师幼互动", "content": "支持幼儿自主选择游戏材料、同伴和玩法，支持幼儿参与一日生活中与自己有关的决策。"},
+            {"id": 27, "unique_id": "A3b8p27", "main_category_code": "A3", "main_category_name": "教育过程", "sub_category_code": "b8", "sub_category_name": "师幼互动", "content": "认真观察幼儿在各类活动中的行为表现并做必要记录，根据一段时间的持续观察，对幼儿的发展情况和需要做出客观全面的分析，提供有针对性地支持。不急于介入或干扰幼儿的活动。"},
+            {"id": 28, "unique_id": "A3b8p28", "main_category_code": "A3", "main_category_name": "教育过程", "sub_category_code": "b8", "sub_category_name": "师幼互动", "content": "重视幼儿通过绘画、讲述等方式对自己经历过的游戏、阅读图画书、观察等活动进行表达表征，教师能一对一倾听并真实记录幼儿的想法和体验。"},
+            {"id": 29, "unique_id": "A3b8p29", "main_category_code": "A3", "main_category_name": "教育过程", "sub_category_code": "b8", "sub_category_name": "师幼互动", "content": "善于发现各种偶发的教育契机，能抓住活动中幼儿感兴趣或有意义的问题和情境，能识别幼儿以新的方式主动学习，及时给予有效支持。"},
+            {"id": 30, "unique_id": "A3b8p30", "main_category_code": "A3", "main_category_name": "教育过程", "sub_category_code": "b8", "sub_category_name": "师幼互动", "content": "尊重并回应幼儿的想法与问题，通过开放性提问、推测、讨论等方式，支持和拓展每一个幼儿的学习。"},
+            {"id": 31, "unique_id": "A3b8p31", "main_category_code": "A3", "main_category_name": "教育过程", "sub_category_code": "b8", "sub_category_name": "师幼互动", "content": "理解幼儿在健康、语言、社会、科学、艺术等各领域的学习方式，尊重幼儿发展的个体差异，发现每个幼儿的优势和长处，促进幼儿在原有水平上的发展。不片面追求某一领域、某一方面的学习和发展。"},
+            {"id": 32, "unique_id": "A3b9p32", "main_category_code": "A3", "main_category_name": "教育过程", "sub_category_code": "b9", "sub_category_name": "家园共育", "content": "幼儿园与家长建立平等互信关系，教师及时与家长分享幼儿的成长和进步，了解幼儿在家庭中的表现，认真倾听家长的意见建议。"},
+            {"id": 33, "unique_id": "A3b9p33", "main_category_code": "A3", "main_category_name": "教育过程", "sub_category_code": "b9", "sub_category_name": "家园共育", "content": "家长有机会体验幼儿园的生活，参与幼儿园管理，引导家长理解教师工作对幼儿成长的价值，尊重教师的专业性，积极参与并支持幼儿园的工作，成为幼儿园的合作伙伴。"},
+            {"id": 34, "unique_id": "A3b9p34", "main_category_code": "A3", "main_category_name": "教育过程", "sub_category_code": "b9", "sub_category_name": "家园共育", "content": "幼儿园通过家长会、家长开放日等多种途径，向家长宣传科学育儿理念和知识，为家长提供分享交流育儿经验的机会，帮助家长解决育儿困惑。"},
+            {"id": 35, "unique_id": "A3b9p35", "main_category_code": "A3", "main_category_name": "教育过程", "sub_category_code": "b9", "sub_category_name": "家园共育", "content": "幼儿园与家庭、社区密切合作，积极构建协同育人机制，充分利用自然、社会和文化资源，共同创设良好的育人环境。"},
+            {"id": 36, "unique_id": "A4b10p36", "main_category_code": "A4", "main_category_name": "环境创设", "sub_category_code": "b10", "sub_category_name": "空间设施", "content": "幼儿园规模与班额符合国家和地方相关规定，合理规划并灵活调整室内外空间布局，最大限度地满足幼儿游戏活动的需要。除综合活动室外，不追求设置专门的功能室，避免奢华浪费和形式主义。"},
+            {"id": 37, "unique_id": "A4b10p37", "main_category_code": "A4", "main_category_name": "环境创设", "sub_category_code": "b10", "sub_category_name": "空间设施", "content": "各类设施设备安全、环保，符合幼儿的年龄特点，方便幼儿使用和取放，满足幼儿逐步增长的独立活动需要。提供必要的遮阳遮雨设施设备，确保特殊天气条件下幼儿必要的户外活动能正常开展。"},
+            {"id": 38, "unique_id": "A4b11p38", "main_category_code": "A4", "main_category_name": "环境创设", "sub_category_code": "b11", "sub_category_name": "玩具材料", "content": "玩具材料种类丰富，数量充足，以低结构材料为主，能够保证多名幼儿同时游戏的需要。尽可能减少幼儿使用电子设备。"},
+            {"id": 39, "unique_id": "A4b11p39", "main_category_code": "A4", "main_category_name": "环境创设", "sub_category_code": "b11", "sub_category_name": "玩具材料", "content": "幼儿园配备的图画书应符合幼儿年龄特点和认知水平，注重体现中华优秀传统文化和现代生活特色，富有教育意义。人均数量不少于10册，每班复本量不超过5册，并根据需要及时调整更新。幼儿园不得使用幼儿教材和境外课程，防止存在意识形态和宗教等渗透的图画书进入幼儿园。"},
+            {"id": 40, "unique_id": "A5b12p40", "main_category_code": "A5", "main_category_name": "教师队伍", "sub_category_code": "b12", "sub_category_name": "师德师风", "content": "教职工有坚定的政治信仰，按照“四有”好教师标准履行幼儿园教师职业道德规范，爱岗敬业，关爱幼儿，严格自律，没有歧视、侮辱、体罚或变相体罚等有损幼儿身心健康的行为。"},
+            {"id": 41, "unique_id": "A5b12p41", "main_category_code": "A5", "main_category_name": "教师队伍", "sub_category_code": "b12", "sub_category_name": "师德师风", "content": "关心教职工思想状况，加强人文关怀，帮助解决教职工思想问题与实际困难，促进教职工身心健康。"},
+            {"id": 42, "unique_id": "A5b13p42", "main_category_code": "A5", "main_category_name": "教师队伍", "sub_category_code": "b13", "sub_category_name": "人员配备", "content": "幼儿园教职工按国家和地方相关要求配备到位，并做到持证上岗，无岗位空缺和无证上岗情况。"},
+            {"id": 43, "unique_id": "A5b13p43", "main_category_code": "A5", "main_category_name": "教师队伍", "sub_category_code": "b13", "sub_category_name": "人员配备", "content": "幼儿园教师符合专业标准要求，保育员受过幼儿保育职业培训，保教人员熟知学前儿童身心发展规律，具有较强的保育教育实践能力。园长应具有五年以上幼儿园教师或者幼儿园管理工作经历，具有较强的专业领导力。"},
+            {"id": 44, "unique_id": "A5b14p44", "main_category_code": "A5", "main_category_name": "教师队伍", "sub_category_code": "b14", "sub_category_name": "专业发展", "content": "园长能与教职工共同研究制订符合教职工自身特点的专业发展规划，提供发展空间，支持他们有计划地达成专业发展目标。"},
+            {"id": 45, "unique_id": "A5b14p45", "main_category_code": "A5", "main_category_name": "教师队伍", "sub_category_code": "b14", "sub_category_name": "专业发展", "content": "制订合理的教研制度并有效落实，教研工作聚焦解决保育教育实践中的困惑和问题，注重激发教师积极主动反思，提高教师实践能力，增强教师专业自信。"},
+            {"id": 46, "unique_id": "A5b14p46", "main_category_code": "A5", "main_category_name": "教师队伍", "sub_category_code": "b14", "sub_category_name": "专业发展", "content": "园长能深入班级了解一日活动和师幼互动过程，共同研究保育教育实践问题，形成协同学习、相互支持的良好氛围。"},
+            {"id": 47, "unique_id": "A5b15p47", "main_category_code": "A5", "main_category_name": "教师队伍", "sub_category_code": "b15", "sub_category_name": "激励机制", "content": "树立正确激励导向，突出日常保育教育实践成效，克服唯课题、唯论文等倾向，注重通过表彰奖励、薪酬待遇、职称评定、岗位晋升、专业支持等多种方式，激励教师爱岗敬业、潜心育人。"},
+            {"id": 48, "unique_id": "A5b15p48", "main_category_code": "A5", "main_category_name": "教师队伍", "sub_category_code": "b15", "sub_category_name": "激励机制", "content": "善于倾听、理解教职工的所思所做，发现和肯定每一名教职工的闪光点和成长进步，教职工能够感受到来自园长和同事的关心与支持，有归属感和幸福感。"}
+        ];
+
+        const statusMessageDiv = document.getElementById('statusMessage');
+
+        function showStatusMessage(message, type = 'info') { 
+            statusMessageDiv.textContent = message;
+            statusMessageDiv.className = type; 
+            statusMessageDiv.style.display = 'block';
+            setTimeout(() => {
+                statusMessageDiv.style.display = 'none';
+            }, 5000); 
+        }
+
+        function getL1Categories() {
+            const l1Categories = {};
+            allInspectionPointsData.forEach(point => {
+                if (!l1Categories[point.main_category_code]) {
+                    l1Categories[point.main_category_code] = point.main_category_name;
+                }
+            });
+            return Object.entries(l1Categories).map(([code, name]) => ({ code, name }));
+        }
+
+        function getL2Categories(l1Code) {
+            const l2Categories = {};
+            allInspectionPointsData.filter(point => point.main_category_code === l1Code)
+                .forEach(point => {
+                    if (!l2Categories[point.sub_category_code]) {
+                        l2Categories[point.sub_category_code] = point.sub_category_name;
+                    }
+                });
+            return Object.entries(l2Categories).map(([code, name]) => ({ code, name }));
+        }
+
+        function getPoints(l1Code, l2Code) {
+            return allInspectionPointsData.filter(point => 
+                point.main_category_code === l1Code && point.sub_category_code === l2Code
+            );
+        }
+
+        function populateSelectWithOptions(selectElement, options, placeholder) {
+            selectElement.innerHTML = `<option value="">-- ${placeholder} --</option>`;
+            options.forEach(opt => {
+                const optionElement = document.createElement('option');
+                if (typeof opt === 'object' && opt.hasOwnProperty('id') && opt.hasOwnProperty('content')) { 
+                    optionElement.value = opt.id;
+                    optionElement.textContent = `${opt.id}. ${opt.content.substring(0, 70)}...`;
+                } else if (typeof opt === 'object' && opt.hasOwnProperty('code') && opt.hasOwnProperty('name')) { 
+                    optionElement.value = opt.code;
+                    optionElement.textContent = `${opt.code} ${opt.name}`;
+                }
+                selectElement.appendChild(optionElement);
+            });
+            selectElement.disabled = options.length === 0;
+        }
+
+        function setupPointSelectors(l1SelectId, l2SelectId, pointSelectId, initialL1, initialL2, initialPointId) {
+            const l1Select = document.getElementById(l1SelectId);
+            const l2Select = document.getElementById(l2SelectId);
+            const pointSelect = document.getElementById(pointSelectId);
+
+            const l1Categories = getL1Categories();
+            populateSelectWithOptions(l1Select, l1Categories, "选择一级分类");
+            if (initialL1) l1Select.value = initialL1;
+
+
+            l1Select.onchange = function() {
+                const selectedL1 = this.value;
+                populateSelectWithOptions(pointSelect, [], "先选二级分类"); // Clear points
+                if (selectedL1) {
+                    const l2Categories = getL2Categories(selectedL1);
+                    populateSelectWithOptions(l2Select, l2Categories, "选择二级分类");
+                    if (initialL1 === selectedL1 && initialL2) { // If pre-selecting L2 for the chosen L1
+                        l2Select.value = initialL2;
+                        l2Select.dispatchEvent(new Event('change')); // Trigger change on L2
+                    } else {
+                         populateSelectWithOptions(pointSelect, [], "先选二级分类"); // Ensure points are cleared if L2 is not pre-selected or L1 changed
+                    }
+                } else {
+                    populateSelectWithOptions(l2Select, [], "先选一级分类");
+                    populateSelectWithOptions(pointSelect, [], "先选二级分类");
+                }
+            };
+
+            l2Select.onchange = function() {
+                const selectedL1 = l1Select.value;
+                const selectedL2 = this.value;
+                if (selectedL1 && selectedL2) {
+                    const points = getPoints(selectedL1, selectedL2);
+                    populateSelectWithOptions(pointSelect, points, "选择具体要点");
+                     if (initialL1 === selectedL1 && initialL2 === selectedL2 && initialPointId) {
+                        pointSelect.value = initialPointId;
+                     }
+                } else {
+                    populateSelectWithOptions(pointSelect, [], "先选二级分类");
+                }
+            };
+            
+            if (initialL1) {
+                l1Select.dispatchEvent(new Event('change'));
+            } else { // Ensure L2 and Point selects are initially disabled if no L1 is set
+                populateSelectWithOptions(l2Select, [], "先选一级分类");
+                populateSelectWithOptions(pointSelect, [], "先选二级分类");
+            }
+        }
+
+        function initDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                request.onupgradeneeded = function(event) {
+                    db = event.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                         const store = db.createObjectStore(STORE_NAME, { keyPath: "id", autoIncrement: true });
+                         store.createIndex("pointId_idx", "pointId", { unique: false });
+                         store.createIndex("timestamp_idx", "timestamp", {unique: false});
+                    } else { 
+                        const transaction = event.target.transaction;
+                        const store = transaction.objectStore(STORE_NAME);
+                        if (!store.indexNames.contains("pointId_idx")) {
+                            store.createIndex("pointId_idx", "pointId", { unique: false });
+                        }
+                        if (!store.indexNames.contains("timestamp_idx")) {
+                             store.createIndex("timestamp_idx", "timestamp", {unique: false});
+                        }
+                    }
+                };
+                request.onsuccess = function(event) {
+                    db = event.target.result;
+                    console.log("数据库 '" + DB_NAME + "' 初始化成功，版本: " + DB_VERSION);
+                    resolve(db);
+                };
+                request.onerror = function(event) {
+                    console.error("数据库错误: ", event.target.errorCode);
+                    showStatusMessage("数据库初始化失败: " + event.target.errorCode, 'error');
+                    reject(event.target.errorCode);
+                };
+            });
+        }
+
+        async function addRecord(record) {
+            return new Promise((resolve, reject) => {
+                if (!db) { showStatusMessage("数据库未初始化!", 'error'); reject("数据库未初始化"); return; }
+                const transaction = db.transaction([STORE_NAME], "readwrite");
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.add(record);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = (event) => { console.error("添加记录失败: ", event.target.error); reject(event.target.error); };
+            });
+        }
+        
+        async function updateRecord(record) {
+            return new Promise((resolve, reject) => {
+                if (!db) { showStatusMessage("数据库未初始化!", 'error'); reject("数据库未初始化"); return; }
+                const transaction = db.transaction([STORE_NAME], "readwrite");
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.put(record);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = (event) => { console.error("更新记录失败: ", event.target.error); reject(event.target.error); };
+            });
+        }
+
+        async function getAllRecords() {
+            return new Promise((resolve, reject) => {
+                if (!db) { showStatusMessage("数据库未初始化!", 'error'); reject("数据库未初始化"); return; }
+                const transaction = db.transaction([STORE_NAME], "readonly");
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.getAll();
+                request.onsuccess = () => {
+                    const sortedRecords = request.result.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                    resolve(sortedRecords);
+                };
+                request.onerror = (event) => { console.error("获取所有记录失败: ", event.target.error); reject(event.target.error); };
+            });
+        }
+        
+        async function getRecordById(id) {
+            return new Promise((resolve, reject) => {
+                if (!db) { reject("数据库未初始化"); return; }
+                const transaction = db.transaction([STORE_NAME], "readonly");
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.get(id);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = (event) => reject(event.target.error);
+            });
+        }
+
+        async function deleteRecord(id) {
+             return new Promise((resolve, reject) => {
+                if (!db) { reject("数据库未初始化"); return; }
+                const transaction = db.transaction([STORE_NAME], "readwrite");
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.delete(id);
+                request.onsuccess = () => resolve();
+                request.onerror = (event) => reject(event.target.error);
+            });
+        }
+
+        function renderRecords(records) {
+            const recordsListDiv = document.getElementById('recordsList');
+            recordsListDiv.innerHTML = ''; 
+            if (!records || records.length === 0) { recordsListDiv.innerHTML = '<p>暂无记录。</p>'; return; }
+
+            records.forEach(record => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'record-item';
+                itemDiv.setAttribute('data-id', record.id);
+                const pointInfo = allInspectionPointsData.find(p => p.id === parseInt(record.pointId));
+                const pointContent = pointInfo ? pointInfo.content : '未知要点';
+                const pointNumber = pointInfo ? pointInfo.id : 'N/A';
+                let html = `<h3>考察要点 ${pointNumber}: ${pointContent.substring(0, 50)}...</h3>`;
+                html += `<p><strong>证据类型:</strong> ${record.evidenceType === 'positive' ? '积极' : '消极'}</p>`;
+                if (record.textEvidence) html += `<p><strong>文字证据:</strong> ${record.textEvidence.replace(/\n/g, '<br>')}</p>`;
+                if (record.imageExportDescription) html += `<p><strong>图片导出描述:</strong> ${record.imageExportDescription}</p>`;
+                html += `<p><small>记录时间: ${new Date(record.timestamp).toLocaleString()}</small></p>`;
+
+                if (record.imageBlob && record.imageBlob instanceof Blob) {
+                    const imageUrl = URL.createObjectURL(record.imageBlob);
+                    html += `<img src="${imageUrl}" alt="图片证据预览" class="preview">`; 
+                    const exportFileName = generateExportFilename(record, pointInfo);
+                    html += `<p class="file-info">建议导出文件名: ${exportFileName}</p>`;
+                    itemDiv.innerHTML = html; 
+                    const imgElement = itemDiv.querySelector('img.preview');
+                    if (imgElement) { 
+                        imgElement.onload = () => URL.revokeObjectURL(imageUrl);
+                        imgElement.onerror = () => URL.revokeObjectURL(imageUrl); 
+                    }
+                    const downloadButton = document.createElement('button');
+                    downloadButton.textContent = '下载图片';
+                    downloadButton.className = 'secondary';
+                    downloadButton.onclick = () => downloadImage(record.imageBlob, exportFileName);
+                    itemDiv.appendChild(downloadButton); 
+                } else {
+                     itemDiv.innerHTML = html;
+                }
+
+                const editButton = document.createElement('button');
+                editButton.textContent = '编辑';
+                editButton.className = 'secondary';
+                editButton.onclick = () => populateEditForm(record.id);
+                itemDiv.appendChild(editButton);
+
+                const deleteButton = document.createElement('button');
+                deleteButton.textContent = '删除';
+                deleteButton.className = 'danger';
+                deleteButton.onclick = async () => {
+                    if (confirm(`确定要删除这条记录 (ID: ${record.id}) 吗?`)) {
+                        try {
+                            await deleteRecord(record.id);
+                            loadAndRenderRecords(); 
+                            showStatusMessage('记录已删除!', 'success');
+                        } catch (error) { console.error("删除记录失败:", error); showStatusMessage('删除记录失败!', 'error'); }
+                    }
+                };
+                itemDiv.appendChild(deleteButton);
+                recordsListDiv.appendChild(itemDiv);
+            });
+        }
+        
+        // --- Smart Content Summary for Filename ---
+        function getSmartContentSummary(pointContent, imageExportDesc, maxLength = 20) {
+            if (!pointContent) return '未知内容';
+            const defaultSummary = pointContent.substring(0, maxLength);
+
+            if (!imageExportDesc || imageExportDesc.trim() === '') {
+                return defaultSummary;
+            }
+
+            const desc = imageExportDesc.trim();
+            // Prioritize longer, more specific terms from the description
+            let searchTerms = [desc]; 
+            if (desc.includes('，') || desc.includes('、') || desc.includes('；') || desc.includes('。')) {
+                desc.split(/[，、；。]/g).forEach(term => {
+                    const cleanedTerm = term.trim();
+                    if (cleanedTerm.length > 1 && !searchTerms.includes(cleanedTerm)) searchTerms.push(cleanedTerm);
+                });
+            } else if (desc.length > 6) { // If no punctuation, try parts of longer descriptions
+                searchTerms.push(desc.substring(0, Math.ceil(desc.length * 0.6)));
+                searchTerms.push(desc.substring(0, Math.ceil(desc.length * 0.4)));
+            }
+             // Remove duplicates and sort by length descending to try longer matches first
+            searchTerms = [...new Set(searchTerms)].filter(term => term.length > 0).sort((a, b) => b.length - a.length);
+
+
+            for (const term of searchTerms) {
+                if (term.length < 2 && searchTerms.length > 1) continue; 
+
+                const startIndex = pointContent.indexOf(term);
+                if (startIndex !== -1) {
+                    const termLength = term.length;
+                    const contextNeeded = Math.max(0, maxLength - termLength); // Ensure non-negative
+                    const beforeContext = Math.floor(contextNeeded / 2);
+                    const afterContext = Math.ceil(contextNeeded / 2);
+
+                    let snippetStart = Math.max(0, startIndex - beforeContext);
+                    let snippetEnd = Math.min(pointContent.length, startIndex + termLength + afterContext);
+                    
+                    let extractedSnippet = pointContent.substring(snippetStart, snippetEnd);
+
+                    if (extractedSnippet.length < maxLength && extractedSnippet.length < pointContent.length) {
+                        if (snippetStart === 0) { // Expand right if at start
+                            snippetEnd = Math.min(pointContent.length, snippetEnd + (maxLength - extractedSnippet.length));
+                        } else if (snippetEnd === pointContent.length) { // Expand left if at end
+                            snippetStart = Math.max(0, snippetStart - (maxLength - extractedSnippet.length));
+                        } // Could add logic to expand both sides if in middle and short
+                        extractedSnippet = pointContent.substring(snippetStart, snippetEnd);
+                    }
+                    
+                    if (extractedSnippet.length > maxLength) {
+                        const termIndexInSnippet = extractedSnippet.indexOf(term); // Re-check index in current snippet
+                        if (termIndexInSnippet !== -1) {
+                            const idealStartInSnippet = Math.max(0, termIndexInSnippet - Math.floor((maxLength - termLength) / 2));
+                            extractedSnippet = extractedSnippet.substring(idealStartInSnippet, idealStartInSnippet + maxLength);
+                        } else { // Term might have been cut off, just take start
+                            extractedSnippet = extractedSnippet.substring(0, maxLength);
+                        }
+                    }
+                    // Trim leading/trailing punctuation from the final snippet
+                    return extractedSnippet.replace(/^[，。；、\s]+|[，。；、\s]+$/g, '');
+                }
+            }
+            return defaultSummary; 
+        }
+
+
+        function generateExportFilename(record, pointInfo) {
+            const pointNumber = pointInfo ? pointInfo.id : '未知序号';
+            
+            let pointContentSummary = getSmartContentSummary(pointInfo ? pointInfo.content : '', record.imageExportDescription, 20); // Max length 20 for this part
+            pointContentSummary = pointContentSummary.replace(/[\\/:*?"<>|.\s#%&{}]/g, '_'); 
+
+            let exportDesc = record.imageExportDescription || '无描述';
+            exportDesc = exportDesc.replace(/[\\/:*?"<>|.\s#%&{}]/g, '_'); 
+
+            let extension = '.jpg'; 
+            if (record.imageName) { 
+                const originalExtMatch = record.imageName.match(/\.[0-9a-z]+$/i);
+                if (originalExtMatch) extension = originalExtMatch[0].toLowerCase();
+            } else if (record.imageBlob && record.imageBlob.type) {
+                const typeParts = record.imageBlob.type.split('/');
+                if (typeParts.length === 2 && typeParts[0] === 'image') {
+                    const extCandidate = typeParts[1].toLowerCase().replace('jpeg', 'jpg');
+                     if (extCandidate === 'png' || extCandidate === 'gif' || extCandidate === 'jpg' || extCandidate === 'webp') {
+                        extension = '.' + extCandidate;
+                    }
+                }
+            }
+            return `${pointNumber}_${pointContentSummary}_${exportDesc}${extension}`;
+        }
+
+        function downloadFile(blob, filename) { 
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none'; // Important for Safari
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            // setTimeout to allow download to start before revoking
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 100);
+        }
+        
+        const downloadImage = downloadFile; 
+
+
+        async function loadAndRenderRecords() {
+            try {
+                const records = await getAllRecords();
+                renderRecords(records);
+            } catch (error) {
+                console.error("加载记录失败:", error);
+                document.getElementById('recordsList').innerHTML = '<p>加载记录失败，请检查浏览器控制台。</p>';
+                 showStatusMessage('加载记录失败!', 'error');
+            }
+        }
+
+        const addRecordForm = document.getElementById('addRecordForm');
+        const newImageFileInput = document.getElementById('imageFile');
+        const newImagePreview = document.getElementById('newImagePreview');
+        const newImagePreviewContainer = document.getElementById('newImagePreviewContainer');
+        let newImageBlob = null;
+        let newImageName = null;
+
+        newImageFileInput.onchange = function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                newImageBlob = file; 
+                newImageName = file.name;
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    newImagePreview.src = e.target.result;
+                    newImagePreviewContainer.classList.remove('hidden');
+                }
+                reader.readAsDataURL(file);
+            } else {
+                newImageBlob = null;
+                newImageName = null;
+                newImagePreview.src = "";
+                newImagePreviewContainer.classList.add('hidden');
+            }
+        };
+
+        addRecordForm.onsubmit = async function(event) {
+            event.preventDefault();
+            const pointId = document.getElementById('addPointSelect').value; 
+            if (!pointId) {
+                showStatusMessage("请选择一个具体的考察要点!", 'error');
+                return;
+            }
+            const record = {
+                pointId: parseInt(pointId),
+                evidenceType: document.querySelector('input[name="evidenceType"]:checked').value,
+                textEvidence: document.getElementById('textEvidence').value.trim(),
+                imageExportDescription: document.getElementById('imageExportDescription').value.trim(),
+                imageBlob: newImageBlob, 
+                imageName: newImageName, 
+                timestamp: new Date().toISOString()
+            };
+
+            try {
+                await addRecord(record);
+                showStatusMessage('记录添加成功!', 'success');
+                addRecordForm.reset();
+                document.getElementById('addL1CategorySelect').value = "";
+                document.getElementById('addL1CategorySelect').dispatchEvent(new Event('change'));
+
+
+                newImageBlob = null;
+                newImageName = null;
+                newImagePreview.src = "";
+                newImagePreviewContainer.classList.add('hidden');
+                loadAndRenderRecords(); 
+            } catch (error) {
+                console.error("添加记录失败:", error);
+                showStatusMessage('添加记录失败!', 'error');
+            }
+        };
+
+        const editRecordSection = document.getElementById('editRecordSection');
+        const addRecordSectionDiv = document.getElementById('addRecordSection');
+        const editRecordForm = document.getElementById('editRecordForm');
+        const editRecordIdInput = document.getElementById('editRecordId');
+        const editTextEvidenceTextarea = document.getElementById('editAlignedTextEvidence');
+        const editImageExportDescriptionInput = document.getElementById('editAlignedImageExportDescription');
+        const editImageFileInput = document.getElementById('editAlignedImageFile');
+        
+        const editCurrentImagePreviewContainer = document.getElementById('editCurrentImagePreviewContainer');
+        const editCurrentImagePreview = document.getElementById('editCurrentImagePreview');
+        const editNewImagePreviewContainer = document.getElementById('editNewImagePreviewContainer');
+        const editNewImagePreview = document.getElementById('editNewImagePreview');
+        const removeCurrentImageButton = document.getElementById('removeCurrentImageButton');
+        const cancelEditButton = document.getElementById('cancelEditButton');
+        
+        let editingImageBlob = null; 
+        let editingImageName = null;
+        let retainCurrentImage = true; 
+
+        async function populateEditForm(recordIdToEdit) {
+            try {
+                const record = await getRecordById(recordIdToEdit);
+                if (!record) {
+                    showStatusMessage("未找到要编辑的记录!", 'error'); return;
+                }
+                editRecordIdInput.value = record.id;
+                
+                const pointData = allInspectionPointsData.find(p => p.id === parseInt(record.pointId));
+                if (pointData) {
+                    setupPointSelectors('editL1CategorySelect', 'editL2CategorySelect', 'editPointSelect', 
+                                        pointData.main_category_code, 
+                                        pointData.sub_category_code, 
+                                        record.pointId.toString());
+                } else { 
+                     setupPointSelectors('editL1CategorySelect', 'editL2CategorySelect', 'editPointSelect', null, null, null);
+                     // Attempt to set the final point value even if categories aren't found perfectly (edge case)
+                    const editPointSelectEl = document.getElementById('editPointSelect');
+                    if (editPointSelectEl) editPointSelectEl.value = record.pointId;
+                }
+
+
+                document.querySelector(`input[name="editEvidenceType"][value="${record.evidenceType}"]`).checked = true;
+                editTextEvidenceTextarea.value = record.textEvidence || "";
+                editImageExportDescriptionInput.value = record.imageExportDescription || "";
+
+                editingImageBlob = null; 
+                editingImageName = null;
+                editImageFileInput.value = ""; 
+                editNewImagePreviewContainer.classList.add('hidden');
+                editNewImagePreview.src = "";
+                retainCurrentImage = true; 
+
+                if (record.imageBlob) {
+                    const imageUrl = URL.createObjectURL(record.imageBlob);
+                    editCurrentImagePreview.src = imageUrl;
+                    editCurrentImagePreview.onload = () => URL.revokeObjectURL(imageUrl); 
+                    editCurrentImagePreview.onerror = () => URL.revokeObjectURL(imageUrl);
+                    editCurrentImagePreviewContainer.classList.remove('hidden');
+                    removeCurrentImageButton.classList.remove('hidden');
+                } else {
+                    editCurrentImagePreviewContainer.classList.add('hidden');
+                    removeCurrentImageButton.classList.add('hidden');
+                }
+                
+                editRecordSection.classList.remove('hidden');
+                addRecordSectionDiv.classList.add('hidden'); 
+                window.scrollTo(0, editRecordSection.offsetTop - 20); 
+            } catch (error) {
+                showStatusMessage("加载编辑数据失败: " + error, 'error');
+            }
+        }
+        
+        removeCurrentImageButton.onclick = function() {
+            retainCurrentImage = false;
+            editingImageBlob = null; 
+            editingImageName = null;
+            editCurrentImagePreviewContainer.classList.add('hidden');
+            editCurrentImagePreview.src = "";
+            showStatusMessage("当前图片已标记为移除。保存更改后生效。", 'info');
+        };
+
+        editImageFileInput.onchange = function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                editingImageBlob = file;
+                editingImageName = file.name;
+                retainCurrentImage = false; 
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    editNewImagePreview.src = e.target.result;
+                    editNewImagePreviewContainer.classList.remove('hidden');
+                    editCurrentImagePreviewContainer.classList.add('hidden'); 
+                }
+                reader.readAsDataURL(file);
+            } else { 
+                editingImageBlob = null;
+                editingImageName = null;
+                editNewImagePreviewContainer.classList.add('hidden');
+                editNewImagePreview.src = "";
+                if (retainCurrentImage && editRecordIdInput.value) {
+                     getRecordById(parseInt(editRecordIdInput.value)).then(r => {
+                        if(r && r.imageBlob) {
+                            const currentImgUrl = URL.createObjectURL(r.imageBlob);
+                            editCurrentImagePreview.src = currentImgUrl;
+                            editCurrentImagePreview.onload = () => URL.revokeObjectURL(currentImgUrl);
+                            editCurrentImagePreviewContainer.classList.remove('hidden');
+                        }
+                     });
+                }
+            }
+        };
+
+        editRecordForm.onsubmit = async function(event) {
+            event.preventDefault();
+            const recordId = parseInt(editRecordIdInput.value);
+            const pointId = document.getElementById('editPointSelect').value; 
+            if (!pointId) {
+                showStatusMessage("请选择一个具体的考察要点!", 'error');
+                return;
+            }
+
+            const updatedRecordData = {
+                id: recordId,
+                pointId: parseInt(pointId),
+                evidenceType: document.querySelector('input[name="editEvidenceType"]:checked').value,
+                textEvidence: editTextEvidenceTextarea.value.trim(),
+                imageExportDescription: editImageExportDescriptionInput.value.trim(),
+                timestamp: new Date().toISOString() 
+            };
+
+            if (editingImageBlob) { 
+                updatedRecordData.imageBlob = editingImageBlob;
+                updatedRecordData.imageName = editingImageName;
+            } else if (!retainCurrentImage) { 
+                updatedRecordData.imageBlob = null;
+                updatedRecordData.imageName = null;
+            } else {
+                const existingRecord = await getRecordById(recordId);
+                if (existingRecord) {
+                    updatedRecordData.imageBlob = existingRecord.imageBlob;
+                    updatedRecordData.imageName = existingRecord.imageName;
+                }
+            }
+            
+            try {
+                await updateRecord(updatedRecordData);
+                showStatusMessage('记录更新成功!', 'success');
+                editRecordForm.reset();
+                editRecordSection.classList.add('hidden');
+                addRecordSectionDiv.classList.remove('hidden'); 
+                loadAndRenderRecords();
+            } catch (error) {
+                console.error("更新记录失败:", error);
+                showStatusMessage('更新记录失败!', 'error');
+            }
+        };
+        
+        cancelEditButton.onclick = function() {
+            editRecordForm.reset();
+            editRecordSection.classList.add('hidden');
+            addRecordSectionDiv.classList.remove('hidden');
+        };
+
+        const bulkExportButton = document.getElementById('bulkExportButton');
+        bulkExportButton.onclick = async function() {
+            if (typeof JSZip === "undefined") {
+                showStatusMessage("JSZip 库未能加载，无法进行批量导出。请检查网络连接或刷新页面。", 'error');
+                return;
+            }
+            if (!db) {
+                showStatusMessage("数据库未初始化!", 'error');
+                return;
+            }
+            bulkExportButton.disabled = true;
+            bulkExportButton.textContent = "正在处理...";
+
+            showStatusMessage("正在准备批量导出，请稍候...", 'info');
+            try {
+                const records = await getAllRecords();
+                const imageRecords = records.filter(r => r.imageBlob && r.imageBlob instanceof Blob);
+
+                if (imageRecords.length === 0) {
+                    showStatusMessage("没有找到可以导出的图片记录。", 'info');
+                    bulkExportButton.disabled = false;
+                    bulkExportButton.textContent = "批量导出所有图片 (ZIP)";
+                    return;
+                }
+
+                const zip = new JSZip();
+                let filesAdded = 0;
+
+                for (const record of imageRecords) {
+                    const pointInfo = allInspectionPointsData.find(p => p.id === parseInt(record.pointId));
+                    const filename = generateExportFilename(record, pointInfo);
+                    zip.file(filename, record.imageBlob);
+                    filesAdded++;
+                }
+                
+                if (filesAdded > 0) {
+                    const content = await zip.generateAsync({type:"blob", compression: "DEFLATE", compressionOptions: {level: 6}});
+                    downloadFile(content, "考察图片批量导出.zip");
+                    showStatusMessage(`成功将 ${filesAdded} 张图片打包导出!`, 'success');
+                } else {
+                    showStatusMessage("没有有效图片被添加到压缩包。", 'info');
+                }
+
+            } catch (error) {
+                console.error("批量导出失败:", error);
+                showStatusMessage("批量导出图片失败: " + error.message, 'error');
+            } finally {
+                bulkExportButton.disabled = false;
+                bulkExportButton.textContent = "批量导出所有图片 (ZIP)";
+            }
+        };
+
+        const resetDataButton = document.getElementById('resetDataButton');
+        
+        async function clearAllDataFromDB() {
+            return new Promise((resolve, reject) => {
+                if (!db) {
+                    showStatusMessage("数据库未初始化!", 'error');
+                    reject("数据库未初始化");
+                    return;
+                }
+                const transaction = db.transaction([STORE_NAME], "readwrite");
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.clear();
+
+                request.onsuccess = function() {
+                    resolve();
+                };
+                request.onerror = function(event) {
+                    console.error("清空数据库失败: ", event.target.error);
+                    reject(event.target.error);
+                };
+            });
+        }
+
+        resetDataButton.onclick = async function() {
+            if (confirm("警告：您确定要删除所有考察记录和已上传的图片吗？此操作不可撤销！")) {
+                if (confirm("再次确认：真的要永久删除所有数据吗？")) {
+                    resetDataButton.disabled = true;
+                    resetDataButton.textContent = "正在重置...";
+                    try {
+                        await clearAllDataFromDB();
+                        showStatusMessage('所有数据已成功重置！', 'success');
+                        setTimeout(() => { 
+                            loadAndRenderRecords(); 
+                            document.getElementById('addL1CategorySelect').value = "";
+                            document.getElementById('addL1CategorySelect').dispatchEvent(new Event('change'));
+                        }, 500); 
+                    } catch (error) {
+                        console.error("重置数据时发生错误: ", error);
+                        showStatusMessage('重置数据失败，详情请查看控制台。', 'error');
+                    } finally {
+                        resetDataButton.disabled = false;
+                        resetDataButton.textContent = "重置所有数据";
+                    }
+                }
+            }
+        };
+
+
+        window.onload = async function() {
+            try {
+                db = await initDB();
+                setupPointSelectors('addL1CategorySelect', 'addL2CategorySelect', 'addPointSelect');
+                setupPointSelectors('editL1CategorySelect', 'editL2CategorySelect', 'editPointSelect'); 
+                loadAndRenderRecords();
+                showStatusMessage('应用已就绪。', 'info');
+            } catch (error) {
+                console.error("应用初始化失败:", error);
+                document.getElementById('recordsList').innerHTML = '<p>应用初始化失败，请刷新页面或检查浏览器控制台。</p>';
+                showStatusMessage('应用初始化失败!', 'error');
+            }
+        };
+
+    </script>
+</body>
+</html>
