@@ -393,7 +393,7 @@
             }, 5000); 
         }
 
-        // --- Hierarchical Point Selection Logic (No changes needed here for this request) ---
+        // --- Hierarchical Point Selection Logic ---
         function getL1Categories() {
             const l1Categories = {};
             allInspectionPointsData.forEach(point => {
@@ -517,7 +517,7 @@
             }
         }
 
-        // --- Database Operations (No changes needed here for this request) ---
+        // --- Database Operations ---
         function initDB() {
             return new Promise((resolve, reject) => {
                 const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -592,7 +592,7 @@
             });
         }
 
-        // --- Render Records List (No changes needed here for this request, but ensure image preview div structure matches form) ---
+        // --- Render Records List ---
         function renderRecords(records) {
             const recordsListDiv = document.getElementById('recordsList');
             recordsListDiv.innerHTML = ''; 
@@ -613,7 +613,6 @@
 
                 if (record.imageBlob && record.imageBlob instanceof Blob) {
                     const imageUrl = URL.createObjectURL(record.imageBlob);
-                    // Use image-preview-box for consistency, though styles might be slightly different for list items
                     html += `<div class="image-preview-box" style="margin: 10px 0; border-style:solid;"><img src="${imageUrl}" alt="图片证据预览" class="preview"></div>`; 
                     const exportFileName = generateExportFilename(record, pointInfo);
                     html += `<p class="file-info">建议导出文件名: ${exportFileName}</p>`;
@@ -655,7 +654,7 @@
             });
         }
         
-        // --- Filename Generation and Download (No changes needed here for this request) ---
+        // --- Filename Generation and Download ---
         function getSmartContentSummary(pointContent, imageExportDesc, maxLength = 20) {
             if (!pointContent) return '未知内容';
             const defaultSummary = pointContent.substring(0, maxLength);
@@ -734,11 +733,11 @@
             catch (error) { console.error("加载记录失败:", error); document.getElementById('recordsList').innerHTML = '<p>加载记录失败...</p>'; showStatusMessage('加载记录失败!', 'error');}
         }
 
-        // --- Add Record Form Logic (Image preview container ID updated) ---
+        // --- Add Record Form Logic ---
         const addRecordForm = document.getElementById('addRecordForm');
         const newImageFileInput = document.getElementById('imageFile');
-        const newImagePreviewEl = document.getElementById('newImagePreview'); // The <img> tag
-        const newImagePreviewBox = document.getElementById('newImagePreviewContainer'); // The <div> container
+        const newImagePreviewEl = document.getElementById('newImagePreview'); 
+        const newImagePreviewBox = document.getElementById('newImagePreviewContainer'); 
         let newImageBlob = null; let newImageName = null;
 
         newImageFileInput.onchange = function(event) {
@@ -779,7 +778,7 @@
             } catch (error) { console.error("添加记录失败:", error); showStatusMessage('添加记录失败!', 'error'); }
         };
 
-        // --- Edit Record Form Logic (Image preview container IDs updated) ---
+        // --- Edit Record Form Logic ---
         const editRecordSection = document.getElementById('editRecordSection');
         const addRecordSectionDiv = document.getElementById('addRecordSection');
         const editRecordForm = document.getElementById('editRecordForm');
@@ -793,7 +792,11 @@
         const editNewImagePreviewEl = document.getElementById('editNewImagePreview');
         const removeCurrentImageButton = document.getElementById('removeCurrentImageButton');
         const cancelEditButton = document.getElementById('cancelEditButton');
-        let editingImageBlob = null; let editingImageName = null; let retainCurrentImage = true; 
+        
+        let editingImageBlob = null; 
+        let editingImageName = null; 
+        let retainCurrentImage = true; 
+        let originalImageBlobForEditForm = null; // MODIFIED: Added to store original blob
 
         async function populateEditForm(recordIdToEdit) {
             try {
@@ -814,10 +817,14 @@
                 document.querySelector(`input[name="editEvidenceType"][value="${record.evidenceType}"]`).checked = true;
                 editTextEvidenceTextarea.value = record.textEvidence || "";
                 editImageExportDescriptionInput.value = record.imageExportDescription || "";
+                
                 editingImageBlob = null; editingImageName = null; editImageFileInput.value = ""; 
                 editNewImagePreviewBox.classList.add('hidden'); editNewImagePreviewEl.src = "";
-                retainCurrentImage = true; 
+                originalImageBlobForEditForm = null; // MODIFIED: Reset
+
                 if (record.imageBlob) {
+                    originalImageBlobForEditForm = record.imageBlob; // MODIFIED: Store original blob
+                    retainCurrentImage = true; // Reset this flag
                     const imageUrl = URL.createObjectURL(record.imageBlob);
                     editCurrentImagePreviewEl.src = imageUrl;
                     editCurrentImagePreviewEl.onload = () => URL.revokeObjectURL(imageUrl); 
@@ -825,6 +832,7 @@
                     editCurrentImagePreviewBox.classList.remove('hidden');
                     removeCurrentImageButton.classList.remove('hidden');
                 } else {
+                    retainCurrentImage = false; // No image to retain
                     editCurrentImagePreviewBox.classList.add('hidden');
                     removeCurrentImageButton.classList.add('hidden');
                 }
@@ -833,43 +841,40 @@
             } catch (error) { showStatusMessage("加载编辑数据失败: " + error, 'error'); }
         }
         removeCurrentImageButton.onclick = () => {
-            retainCurrentImage = false; editingImageBlob = null; editingImageName = null;
+            retainCurrentImage = false; // Mark that original image should not be kept
+            // editingImageBlob is not nulled here, as that's for a *new* replacement image
             editCurrentImagePreviewBox.classList.add('hidden'); editCurrentImagePreviewEl.src = "";
-            removeCurrentImageButton.classList.add('hidden'); // Hide button itself
+            removeCurrentImageButton.classList.add('hidden'); 
             showStatusMessage("当前图片已标记为移除。保存更改后生效。", 'info');
         };
         editImageFileInput.onchange = (event) => {
             const file = event.target.files[0];
             if (file) {
-                editingImageBlob = file; editingImageName = file.name; retainCurrentImage = false; 
+                editingImageBlob = file; editingImageName = file.name; 
+                retainCurrentImage = false; // If a new file is chosen, we are no longer retaining the original by default
                 const reader = new FileReader();
                 reader.onload = (e) => { 
                     editNewImagePreviewEl.src = e.target.result; 
                     editNewImagePreviewBox.classList.remove('hidden');
-                    editCurrentImagePreviewBox.classList.add('hidden'); 
-                    removeCurrentImageButton.classList.add('hidden');
+                    editCurrentImagePreviewBox.classList.add('hidden'); // Hide original preview
+                    removeCurrentImageButton.classList.add('hidden'); // Hide remove button for original
                 }
                 reader.readAsDataURL(file);
             } else { 
                 editingImageBlob = null; editingImageName = null;
                 editNewImagePreviewBox.classList.add('hidden'); editNewImagePreviewEl.src = "";
-                // If file input is cleared, decide whether to show old image or nothing
-                if (editRecordIdInput.value) { // Check if we are actually editing an existing record
-                    getRecordById(parseInt(editRecordIdInput.value)).then(r => {
-                        if(r && r.imageBlob && retainCurrentImage) { // Only show if retainCurrentImage is still true
-                            const currentImgUrl = URL.createObjectURL(r.imageBlob);
-                            editCurrentImagePreviewEl.src = currentImgUrl;
-                            editCurrentImagePreviewEl.onload = () => URL.revokeObjectURL(currentImgUrl);
-                            editCurrentImagePreviewBox.classList.remove('hidden');
-                            removeCurrentImageButton.classList.remove('hidden');
-                        } else { // Otherwise, ensure current image preview is hidden
-                             editCurrentImagePreviewBox.classList.add('hidden');
-                             removeCurrentImageButton.classList.add('hidden');
-                        }
-                     });
-                } else { // New record or no existing image, keep current hidden
-                    editCurrentImagePreviewBox.classList.add('hidden');
-                    removeCurrentImageButton.classList.add('hidden');
+                
+                // MODIFIED: Logic to show original image if file input is cleared and original should be shown
+                if (originalImageBlobForEditForm && retainCurrentImage) { 
+                    const currentImgUrl = URL.createObjectURL(originalImageBlobForEditForm);
+                    editCurrentImagePreviewEl.src = currentImgUrl;
+                    editCurrentImagePreviewEl.onload = () => URL.revokeObjectURL(currentImgUrl);
+                    editCurrentImagePreviewEl.onerror = () => URL.revokeObjectURL(currentImgUrl);
+                    editCurrentImagePreviewBox.classList.remove('hidden');
+                    removeCurrentImageButton.classList.remove('hidden');
+                } else { 
+                     editCurrentImagePreviewBox.classList.add('hidden');
+                     removeCurrentImageButton.classList.add('hidden');
                 }
             }
         };
@@ -885,13 +890,20 @@
                 imageExportDescription: editImageExportDescriptionInput.value.trim(),
                 timestamp: new Date().toISOString() 
             };
-            if (editingImageBlob) { 
-                updatedRecordData.imageBlob = editingImageBlob; updatedRecordData.imageName = editingImageName;
-            } else if (!retainCurrentImage) { 
-                updatedRecordData.imageBlob = null; updatedRecordData.imageName = null;
-            } else {
+
+            if (editingImageBlob) { // A new image was selected
+                updatedRecordData.imageBlob = editingImageBlob; 
+                updatedRecordData.imageName = editingImageName;
+            } else if (!retainCurrentImage) { // No new image, and original was marked for removal (or never existed)
+                updatedRecordData.imageBlob = null; 
+                updatedRecordData.imageName = null;
+            } else { // No new image, original image should be retained
+                // Fetch the existing record to ensure we have the original blob and name if not changed
                 const existingRecord = await getRecordById(recordId);
-                if (existingRecord) { updatedRecordData.imageBlob = existingRecord.imageBlob; updatedRecordData.imageName = existingRecord.imageName; }
+                if (existingRecord) { 
+                    updatedRecordData.imageBlob = existingRecord.imageBlob; 
+                    updatedRecordData.imageName = existingRecord.imageName; 
+                }
             }
             try {
                 await updateRecord(updatedRecordData);
@@ -900,34 +912,22 @@
                 loadAndRenderRecords();
             } catch (error) { console.error("更新记录失败:", error); showStatusMessage('更新记录失败!', 'error'); }
         };
-        cancelEditButton.onclick = () => { editRecordForm.reset(); editRecordSection.classList.add('hidden'); addRecordSectionDiv.classList.remove('hidden'); };
+        cancelEditButton.onclick = () => { 
+            editRecordForm.reset(); 
+            editRecordSection.classList.add('hidden'); 
+            addRecordSectionDiv.classList.remove('hidden'); 
+            // Reset image previews and states for edit form
+            editingImageBlob = null; editingImageName = null; originalImageBlobForEditForm = null;
+            editCurrentImagePreviewBox.classList.add('hidden'); editCurrentImagePreviewEl.src = "";
+            editNewImagePreviewBox.classList.add('hidden'); editNewImagePreviewEl.src = "";
+            removeCurrentImageButton.classList.add('hidden');
+        };
 
         // --- Management Buttons Logic ---
+        const exportTextButton = document.getElementById('exportTextButton');
         const bulkExportButton = document.getElementById('bulkExportButton');
-        bulkExportButton.onclick = async () => {
-            if (typeof JSZip === "undefined") { showStatusMessage("JSZip 库未能加载...", 'error'); return; }
-            if (!db) { showStatusMessage("数据库未初始化!", 'error'); return; }
-            bulkExportButton.disabled = true; bulkExportButton.textContent = "正在处理...";
-            showStatusMessage("正在准备批量导出...", 'info');
-            try {
-                const records = await getAllRecords();
-                const imageRecords = records.filter(r => r.imageBlob && r.imageBlob instanceof Blob);
-                if (imageRecords.length === 0) { showStatusMessage("没有可导出的图片记录。", 'info'); return; }
-                const zip = new JSZip(); let filesAdded = 0;
-                for (const record of imageRecords) {
-                    const pointInfo = allInspectionPointsData.find(p => p.id === parseInt(record.pointId));
-                    const filename = generateExportFilename(record, pointInfo);
-                    zip.file(filename, record.imageBlob); filesAdded++;
-                }
-                if (filesAdded > 0) {
-                    const content = await zip.generateAsync({type:"blob", compression: "DEFLATE", compressionOptions: {level: 6}});
-                    downloadFile(content, "考察图片批量导出.zip");
-                    showStatusMessage(`成功将 ${filesAdded} 张图片打包导出!`, 'success');
-                } else showStatusMessage("没有有效图片被添加到压缩包。", 'info');
-            } catch (error) { console.error("批量导出失败:", error); showStatusMessage("批量导出图片失败: " + error.message, 'error'); } 
-            finally { bulkExportButton.disabled = false; bulkExportButton.textContent = "批量导出所有图片 (ZIP)"; }
-        };
         const resetDataButton = document.getElementById('resetDataButton');
+        
         async function clearAllDataFromDB() {
             return new Promise((resolve, reject) => {
                 if (!db) {
@@ -937,11 +937,10 @@
                 }
                 const transaction = db.transaction([STORE_NAME], "readwrite");
                 const store = transaction.objectStore(STORE_NAME);
-                const request = store.clear(); // 清除对象存储中的所有数据
+                const request = store.clear(); 
 
                 request.onsuccess = () => {
                     console.log(`对象存储 '${STORE_NAME}' 已成功清除。`);
-                    // 成功信息已记录，Promise 的 resolve 将在事务完成后执行
                 };
                 request.onerror = (event) => {
                     console.error(`清除对象存储 '${STORE_NAME}' 时出错:`, event.target.error);
@@ -951,48 +950,16 @@
 
                 transaction.oncomplete = () => {
                     console.log("清除数据事务已完成。");
-                    resolve(); // 当事务成功完成时，resolve Promise
+                    resolve(); 
                 };
                 transaction.onerror = (event) => {
                     console.error("清除数据事务错误: ", event.target.error);
-                    // 如果 request.onerror 也触发并 reject，这可能是冗余的，
-                    // 但对于捕获事务级别的错误是好的。
                     showStatusMessage('数据清除事务失败!', 'error');
                     reject(event.target.error);
                 };
             });
         }
-        resetDataButton.onclick = async () => {
-            if (confirm("警告：您确定要删除所有考察记录和已上传的图片吗？此操作不可撤销！")) {
-                if (confirm("再次确认：真的要永久删除所有数据吗？")) {
-                    resetDataButton.disabled = true; resetDataButton.textContent = "正在重置...";
-                    try {
-                        await clearAllDataFromDB(); // 调用已修复的清除函数
-                        showStatusMessage('所有数据已成功重置！', 'success');
-                        setTimeout(() => { 
-                            loadAndRenderRecords(); 
-                            // 重置添加表单的分类选择
-                            const addL1Select = document.getElementById('addL1CategorySelect');
-                            if (addL1Select) {
-                                addL1Select.value = "";
-                                addL1Select.dispatchEvent(new Event('change'));
-                            }
-                            // 如果编辑表单也是可见的或需要重置，也应处理
-                        }, 500); 
-                    } catch (error) { 
-                        console.error("重置数据时发生错误: ", error); 
-                        showStatusMessage('重置数据失败...', 'error'); 
-                    } 
-                    finally { 
-                        resetDataButton.disabled = false; 
-                        resetDataButton.textContent = "重置所有数据"; 
-                    }
-                }
-            }
-        };
-        
-        // --- New: Export Text Evidence ---
-        const exportTextButton = document.getElementById('exportTextButton');
+
         exportTextButton.onclick = async function() {
             if (!db) {
                 showStatusMessage("数据库未初始化!", 'error');
@@ -1009,27 +976,31 @@
                     return;
                 }
 
-                let textContent = "实地考察文字证据记录\n";
-                textContent += `导出时间: ${new Date().toLocaleString()}\n`;
-                textContent += "==================================================\n\n";
+                const lines = []; // MODIFIED: Use array for better performance
+                lines.push("实地考察文字证据记录");
+                lines.push(`导出时间: ${new Date().toLocaleString()}`);
+                lines.push("==================================================");
+                lines.push("");
 
                 for (const record of records) {
                     const pointInfo = allInspectionPointsData.find(p => p.id === parseInt(record.pointId));
-                    textContent += `记录ID: ${record.id}\n`;
-                    textContent += `考察要点ID: ${record.pointId}\n`;
-                    textContent += `考察要点内容: ${pointInfo ? pointInfo.content : '未知要点'}\n`;
-                    textContent += `  一级分类: ${pointInfo ? pointInfo.main_category_code + ' ' + pointInfo.main_category_name : 'N/A'}\n`;
-                    textContent += `  二级分类: ${pointInfo ? pointInfo.sub_category_code + ' ' + pointInfo.sub_category_name : 'N/A'}\n`;
-                    textContent += `证据类型: ${record.evidenceType === 'positive' ? '积极' : '消极'}\n`;
-                    textContent += `文字证据内容:\n${record.textEvidence || '无文字证据'}\n`;
-                    textContent += `图片关联描述: ${record.imageExportDescription || '无'}\n`;
+                    lines.push(`记录ID: ${record.id}`);
+                    lines.push(`考察要点ID: ${record.pointId}`);
+                    lines.push(`考察要点内容: ${pointInfo ? pointInfo.content : '未知要点'}`);
+                    lines.push(`  一级分类: ${pointInfo ? pointInfo.main_category_code + ' ' + pointInfo.main_category_name : 'N/A'}`);
+                    lines.push(`  二级分类: ${pointInfo ? pointInfo.sub_category_code + ' ' + pointInfo.sub_category_name : 'N/A'}`);
+                    lines.push(`证据类型: ${record.evidenceType === 'positive' ? '积极' : '消极'}`);
+                    lines.push(`文字证据内容:\n${record.textEvidence || '无文字证据'}`);
+                    lines.push(`图片关联描述: ${record.imageExportDescription || '无'}`);
                     if (record.imageName) {
-                         textContent += `关联图片文件名(原始): ${record.imageName}\n`;
+                         lines.push(`关联图片文件名(原始): ${record.imageName}`);
                     }
-                    textContent += `记录时间: ${new Date(record.timestamp).toLocaleString()}\n`;
-                    textContent += "--------------------------------------------------\n\n";
+                    lines.push(`记录时间: ${new Date(record.timestamp).toLocaleString()}`);
+                    lines.push("--------------------------------------------------");
+                    lines.push("");
                 }
                 
+                const textContent = lines.join('\n'); // MODIFIED
                 const blob = new Blob([textContent], {type: 'text/plain;charset=utf-8;'});
                 downloadFile(blob, "考察文字证据记录.txt");
                 showStatusMessage("文字证据导出成功!", 'success');
@@ -1043,8 +1014,7 @@
             }
         };
         
-        // Copy existing bulk export and reset functions here to keep script complete
-        bulkExportButton.onclick = async () => {
+        bulkExportButton.onclick = async () => { // MODIFIED: This is the kept, more complete version
             if (typeof JSZip === "undefined") { showStatusMessage("JSZip 库未能加载...", 'error'); return; }
             if (!db) { showStatusMessage("数据库未初始化!", 'error'); return; }
             bulkExportButton.disabled = true; bulkExportButton.textContent = "正在处理...";
@@ -1052,7 +1022,12 @@
             try {
                 const records = await getAllRecords();
                 const imageRecords = records.filter(r => r.imageBlob && r.imageBlob instanceof Blob);
-                if (imageRecords.length === 0) { showStatusMessage("没有可导出的图片记录。", 'info'); return; }
+                if (imageRecords.length === 0) { 
+                    showStatusMessage("没有可导出的图片记录。", 'info'); 
+                    // Ensure button is re-enabled even if no records
+                    bulkExportButton.disabled = false; bulkExportButton.textContent = "批量导出所有图片 (ZIP)";
+                    return; 
+                }
                 const zip = new JSZip(); let filesAdded = 0;
                 for (const record of imageRecords) {
                     const pointInfo = allInspectionPointsData.find(p => p.id === parseInt(record.pointId));
@@ -1068,7 +1043,7 @@
             finally { bulkExportButton.disabled = false; bulkExportButton.textContent = "批量导出所有图片 (ZIP)"; }
         };
         
-        resetDataButton.onclick = async () => {
+        resetDataButton.onclick = async () => { // MODIFIED: This is the kept, more complete version
             if (confirm("警告：您确定要删除所有考察记录和已上传的图片吗？此操作不可撤销！")) {
                 if (confirm("再次确认：真的要永久删除所有数据吗？")) {
                     resetDataButton.disabled = true; resetDataButton.textContent = "正在重置...";
