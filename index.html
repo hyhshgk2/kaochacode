@@ -717,7 +717,8 @@
                      if (['png', 'gif', 'jpg', 'webp'].includes(extCandidate)) extension = '.' + extCandidate;
                 }
             }
-            return `${pointNumber}_${pointContentSummary}_${exportDesc}${extension}`;
+            const evidenceTypeString = record.evidenceType === 'positive' ? '积极' : '消极';
+            return `${pointNumber}_${evidenceTypeString}_${pointContentSummary}_${exportDesc}${extension}`;
         }
         function downloadFile(blob, filename) { 
             const url = URL.createObjectURL(blob);
