@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>实地考察记录 (纯前端版)</title>
+    <title>长春市幼儿园保教质量评估 入园证据记录 (纯前端版)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         body {
@@ -22,9 +22,15 @@
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
-        h1, h2 {
+        h1 {
             color: #2c3e50;
             margin-top: 0;
+            font-size: 1.5em; /* h1 主标题的字体大小 */
+        }
+        h2 {
+            color: #2c3e50;
+            margin-top: 0;
+            font-size: 1.1em; /* h2 二级标题的字体大小 */
         }
         label {
             display: block;
@@ -209,7 +215,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>实地考察记录 (纯前端版)</h1>
+        <h1>长春市幼儿园保教质量评估 入园证据记录 (纯前端版)</h1>
 
         <div id="statusMessage"></div>
 
@@ -226,20 +232,33 @@
                 <input type="hidden" id="editRecordId">
                 <div class="point-selection-group">
                     <div>
-                        <label for="editL1CategorySelect">一级分类:</label>
-                        <select id="editL1CategorySelect" required></select>
+                        <label for="editKeywordSearch">关键词搜索要点:</label>
+                        <input type="text" id="editKeywordSearch" placeholder="输入关键词搜索要点...">
+                        <button type="button" id="editClearKeywordButton" class="secondary" style="margin-top:5px;">清除关键词搜索</button>
                     </div>
-                    <div>
-                        <label for="editL2CategorySelect">二级分类:</label>
-                        <select id="editL2CategorySelect" required disabled></select>
-                    </div>
-                    <div>
-                        <label for="editPointListArea">具体要点:</label>
-                        <div id="editPointListArea" class="point-list-area">
-                            <p class="no-points">-- 先选择二级分类 --</p>
+                    <div id="editKeywordResults" class="hidden">
+                        <label>搜索结果:</label>
+                        <div id="editKeywordPointListArea" class="point-list-area">
+                            <p class="no-points">-- 输入关键词进行搜索 --</p>
                         </div>
-                        <input type="hidden" id="editSelectedPointId" required>
                     </div>
+                    <div id="editCategorySelection">
+                        <div>
+                            <label for="editL1CategorySelect">一级分类:</label>
+                            <select id="editL1CategorySelect" required></select>
+                        </div>
+                        <div>
+                            <label for="editL2CategorySelect">二级分类:</label>
+                            <select id="editL2CategorySelect" required disabled></select>
+                        </div>
+                        <div>
+                            <label for="editPointListArea">具体要点:</label>
+                            <div id="editPointListArea" class="point-list-area">
+                                <p class="no-points">-- 先选择二级分类 --</p>
+                            </div>
+                        </div>
+                    </div>
+                    <input type="hidden" id="editSelectedPointId" required>
                 </div>
                 <div>
                     <label>证据类型:</label>
@@ -277,20 +296,33 @@
             <form id="addRecordForm">
                  <div class="point-selection-group">
                     <div>
-                        <label for="addL1CategorySelect">一级分类:</label>
-                        <select id="addL1CategorySelect" required></select>
+                        <label for="addKeywordSearch">关键词搜索要点:</label>
+                        <input type="text" id="addKeywordSearch" placeholder="输入关键词搜索要点...">
+                        <button type="button" id="addClearKeywordButton" class="secondary" style="margin-top:5px;">清除关键词搜索</button>
                     </div>
-                    <div>
-                        <label for="addL2CategorySelect">二级分类:</label>
-                        <select id="addL2CategorySelect" required disabled></select>
-                    </div>
-                    <div>
-                        <label for="addPointListArea">具体要点:</label>
-                        <div id="addPointListArea" class="point-list-area">
-                             <p class="no-points">-- 先选择二级分类 --</p>
+                    <div id="addKeywordResults" class="hidden">
+                        <label>搜索结果:</label>
+                        <div id="addKeywordPointListArea" class="point-list-area">
+                            <p class="no-points">-- 输入关键词进行搜索 --</p>
                         </div>
-                        <input type="hidden" id="addSelectedPointId" required>
                     </div>
+                    <div id="addCategorySelection">
+                        <div>
+                            <label for="addL1CategorySelect">一级分类:</label>
+                            <select id="addL1CategorySelect" required></select>
+                        </div>
+                        <div>
+                            <label for="addL2CategorySelect">二级分类:</label>
+                            <select id="addL2CategorySelect" required disabled></select>
+                        </div>
+                        <div>
+                            <label for="addPointListArea">具体要点:</label>
+                            <div id="addPointListArea" class="point-list-area">
+                                 <p class="no-points">-- 先选择二级分类 --</p>
+                            </div>
+                        </div>
+                    </div>
+                    <input type="hidden" id="addSelectedPointId" required>
                 </div>
                 <div>
                     <label>证据类型:</label>
@@ -371,7 +403,7 @@
             {"id": 37, "unique_id": "A4b10p37", "main_category_code": "A4", "main_category_name": "环境创设", "sub_category_code": "b10", "sub_category_name": "空间设施", "content": "各类设施设备安全、环保，符合幼儿的年龄特点，方便幼儿使用和取放，满足幼儿逐步增长的独立活动需要。提供必要的遮阳遮雨设施设备，确保特殊天气条件下幼儿必要的户外活动能正常开展。"},
             {"id": 38, "unique_id": "A4b11p38", "main_category_code": "A4", "main_category_name": "环境创设", "sub_category_code": "b11", "sub_category_name": "玩具材料", "content": "玩具材料种类丰富，数量充足，以低结构材料为主，能够保证多名幼儿同时游戏的需要。尽可能减少幼儿使用电子设备。"},
             {"id": 39, "unique_id": "A4b11p39", "main_category_code": "A4", "main_category_name": "环境创设", "sub_category_code": "b11", "sub_category_name": "玩具材料", "content": "幼儿园配备的图画书应符合幼儿年龄特点和认知水平，注重体现中华优秀传统文化和现代生活特色，富有教育意义。人均数量不少于10册，每班复本量不超过5册，并根据需要及时调整更新。幼儿园不得使用幼儿教材和境外课程，防止存在意识形态和宗教等渗透的图画书进入幼儿园。"},
-            {"id": 40, "unique_id": "A5b12p40", "main_category_code": "A5", "main_category_name": "教师队伍", "sub_category_code": "b12", "sub_category_name": "师德师风", "content": "教职工有坚定的政治信仰，按照“四有”好教师标准履行幼儿园教师职业道德规范，爱岗敬业，关爱幼儿，严格自律，没有歧视、侮辱、体罚或变相体罚等有损幼儿身心健康的行为。"},
+            {"id": 40, "unique_id": "A5b12p40", "main_category_code": "A5", "main_category_name": "教师队伍", "sub_category_code": "b12", "sub_category_name": "师德师风", "content": "教职工有坚定的政治信仰，按照\"四有\"好教师标准履行幼儿园教师职业道德规范，爱岗敬业，关爱幼儿，严格自律，没有歧视、侮辱、体罚或变相体罚等有损幼儿身心健康的行为。"},
             {"id": 41, "unique_id": "A5b12p41", "main_category_code": "A5", "main_category_name": "教师队伍", "sub_category_code": "b12", "sub_category_name": "师德师风", "content": "关心教职工思想状况，加强人文关怀，帮助解决教职工思想问题与实际困难，促进教职工身心健康。"},
             {"id": 42, "unique_id": "A5b13p42", "main_category_code": "A5", "main_category_name": "教师队伍", "sub_category_code": "b13", "sub_category_name": "人员配备", "content": "幼儿园教职工按国家和地方相关要求配备到位，并做到持证上岗，无岗位空缺和无证上岗情况。"},
             {"id": 43, "unique_id": "A5b13p43", "main_category_code": "A5", "main_category_name": "教师队伍", "sub_category_code": "b13", "sub_category_name": "人员配备", "content": "幼儿园教师符合专业标准要求，保育员受过幼儿保育职业培训，保教人员熟知学前儿童身心发展规律，具有较强的保育教育实践能力。园长应具有五年以上幼儿园教师或者幼儿园管理工作经历，具有较强的专业领导力。"},
@@ -402,6 +434,100 @@
                 }
             });
             return Object.entries(l1Categories).map(([code, name]) => ({ code, name }));
+        }
+
+        // --- Keyword Search Logic ---
+        function searchPointsByKeyword(keyword) {
+            if (!keyword || keyword.trim() === '') return [];
+            const searchTerm = keyword.trim().toLowerCase();
+            return allInspectionPointsData.filter(point => 
+                point.content.toLowerCase().includes(searchTerm) ||
+                point.main_category_name.toLowerCase().includes(searchTerm) ||
+                point.sub_category_name.toLowerCase().includes(searchTerm)
+            );
+        }
+
+        function setupKeywordSearch(searchInputId, clearButtonId, resultsAreaId, keywordPointListAreaId, hiddenInputId, categorySelectionId) {
+            const searchInput = document.getElementById(searchInputId);
+            const clearButton = document.getElementById(clearButtonId);
+            const resultsArea = document.getElementById(resultsAreaId);
+            const keywordPointListArea = document.getElementById(keywordPointListAreaId);
+            const hiddenInput = document.getElementById(hiddenInputId);
+            const categorySelection = document.getElementById(categorySelectionId);
+
+            // 获取分类选择器引用
+            const isEditForm = searchInputId.includes('edit');
+            const l1Select = document.getElementById(isEditForm ? 'editL1CategorySelect' : 'addL1CategorySelect');
+            const l2Select = document.getElementById(isEditForm ? 'editL2CategorySelect' : 'addL2CategorySelect');
+
+            // 实时搜索
+            searchInput.oninput = function() {
+                const keyword = this.value.trim();
+                if (keyword === '') {
+                    resultsArea.classList.add('hidden');
+                    categorySelection.classList.remove('hidden');
+                    keywordPointListArea.innerHTML = '<p class="no-points">-- 输入关键词进行搜索 --</p>';
+                    hiddenInput.value = '';
+                    // 恢复分类选择器的required属性
+                    l1Select.required = true;
+                    l2Select.required = true;
+                    return;
+                }
+
+                const matchedPoints = searchPointsByKeyword(keyword);
+                if (matchedPoints.length > 0) {
+                    resultsArea.classList.remove('hidden');
+                    categorySelection.classList.add('hidden');
+                    renderKeywordSearchResults(keywordPointListAreaId, hiddenInputId, matchedPoints);
+                    // 移除分类选择器的required属性，因为它们被隐藏了
+                    l1Select.required = false;
+                    l2Select.required = false;
+                } else {
+                    resultsArea.classList.remove('hidden');
+                    categorySelection.classList.add('hidden');
+                    keywordPointListArea.innerHTML = '<p class="no-points">-- 未找到匹配的要点 --</p>';
+                    hiddenInput.value = '';
+                    // 移除分类选择器的required属性，因为它们被隐藏了
+                    l1Select.required = false;
+                    l2Select.required = false;
+                }
+            };
+
+            // 清除搜索
+            clearButton.onclick = function() {
+                searchInput.value = '';
+                resultsArea.classList.add('hidden');
+                categorySelection.classList.remove('hidden');
+                keywordPointListArea.innerHTML = '<p class="no-points">-- 输入关键词进行搜索 --</p>';
+                hiddenInput.value = '';
+                // 恢复分类选择器的required属性
+                l1Select.required = true;
+                l2Select.required = true;
+            };
+        }
+
+        function renderKeywordSearchResults(areaId, hiddenInputId, points) {
+            const area = document.getElementById(areaId);
+            const hiddenInput = document.getElementById(hiddenInputId);
+            area.innerHTML = '';
+            hiddenInput.value = '';
+
+            points.forEach(point => {
+                const pointDiv = document.createElement('div');
+                pointDiv.className = 'point-option';
+                pointDiv.innerHTML = `<strong>ID${point.id}</strong> [${point.main_category_code} ${point.main_category_name} > ${point.sub_category_code} ${point.sub_category_name}]<br/>${point.content}`;
+                pointDiv.setAttribute('data-point-id', point.id);
+
+                pointDiv.onclick = function() {
+                    const currentSelected = area.querySelector('.point-option.selected');
+                    if (currentSelected) {
+                        currentSelected.classList.remove('selected');
+                    }
+                    this.classList.add('selected');
+                    hiddenInput.value = this.getAttribute('data-point-id');
+                };
+                area.appendChild(pointDiv);
+            });
         }
 
         function getL2Categories(l1Code) {
@@ -468,7 +594,7 @@
             });
         }
 
-        function setupPointSelectors(l1SelectId, l2SelectId, pointListAreaId, pointHiddenInputId, initialL1, initialL2, initialPointId) {
+        function setupPointSelectors(l1SelectId, l2SelectId, pointListAreaId, pointHiddenInputId, initialL1, initialL2, initialPointId, keywordSearchInputId, keywordClearButtonId, keywordResultsAreaId, keywordPointListAreaId, categorySelectionId) {
             const l1Select = document.getElementById(l1SelectId);
             const l2Select = document.getElementById(l2SelectId);
             
@@ -492,6 +618,16 @@
                     populateSelectWithOptions(l2Select, [], "先选一级分类");
                     renderPointSelectionList(pointListAreaId, pointHiddenInputId, [], null);
                 }
+                
+                // 清除关键词搜索当选择分类时
+                if (keywordSearchInputId) {
+                    document.getElementById(keywordSearchInputId).value = '';
+                    document.getElementById(keywordResultsAreaId).classList.add('hidden');
+                    document.getElementById(categorySelectionId).classList.remove('hidden');
+                    // 恢复分类选择器的required属性
+                    l1Select.required = true;
+                    l2Select.required = true;
+                }
             };
 
             l2Select.onchange = function() {
@@ -514,6 +650,11 @@
             } else { 
                 populateSelectWithOptions(l2Select, [], "先选一级分类");
                 renderPointSelectionList(pointListAreaId, pointHiddenInputId, [], null);
+            }
+
+            // 设置关键词搜索功能
+            if (keywordSearchInputId) {
+                setupKeywordSearch(keywordSearchInputId, keywordClearButtonId, keywordResultsAreaId, keywordPointListAreaId, pointHiddenInputId, categorySelectionId);
             }
         }
 
@@ -773,6 +914,13 @@
                 addRecordForm.reset();
                 document.getElementById('addL1CategorySelect').value = "";
                 document.getElementById('addL1CategorySelect').dispatchEvent(new Event('change'));
+                                                                        // 清除关键词搜索
+                            document.getElementById('addKeywordSearch').value = '';
+                            document.getElementById('addKeywordResults').classList.add('hidden');
+                            document.getElementById('addCategorySelection').classList.remove('hidden');
+                            // 恢复分类选择器的required属性
+                            document.getElementById('addL1CategorySelect').required = true;
+                            document.getElementById('addL2CategorySelect').required = true;
                 newImageBlob = null; newImageName = null; newImagePreviewEl.src = ""; 
                 newImagePreviewBox.classList.add('hidden');
                 loadAndRenderRecords(); 
@@ -809,10 +957,10 @@
                     setupPointSelectors('editL1CategorySelect', 'editL2CategorySelect', 
                                         'editPointListArea', 'editSelectedPointId',
                                         pointData.main_category_code, pointData.sub_category_code, 
-                                        record.pointId.toString());
+                                        record.pointId.toString(), 'editKeywordSearch', 'editClearKeywordButton', 'editKeywordResults', 'editKeywordPointListArea', 'editCategorySelection');
                 } else { 
                      setupPointSelectors('editL1CategorySelect', 'editL2CategorySelect', 
-                                         'editPointListArea', 'editSelectedPointId', null, null, null);
+                                         'editPointListArea', 'editSelectedPointId', null, null, null, 'editKeywordSearch', 'editClearKeywordButton', 'editKeywordResults', 'editKeywordPointListArea', 'editCategorySelection');
                      document.getElementById('editSelectedPointId').value = record.pointId;
                 }
                 document.querySelector(`input[name="editEvidenceType"][value="${record.evidenceType}"]`).checked = true;
@@ -1015,7 +1163,7 @@
             }
         };
         
-        bulkExportButton.onclick = async () => { // MODIFIED: This is the kept, more complete version
+        bulkExportButton.onclick = async () => {
             if (typeof JSZip === "undefined") { showStatusMessage("JSZip 库未能加载...", 'error'); return; }
             if (!db) { showStatusMessage("数据库未初始化!", 'error'); return; }
             bulkExportButton.disabled = true; bulkExportButton.textContent = "正在处理...";
@@ -1025,23 +1173,41 @@
                 const imageRecords = records.filter(r => r.imageBlob && r.imageBlob instanceof Blob);
                 if (imageRecords.length === 0) { 
                     showStatusMessage("没有可导出的图片记录。", 'info'); 
-                    // Ensure button is re-enabled even if no records
                     bulkExportButton.disabled = false; bulkExportButton.textContent = "批量导出所有图片 (ZIP)";
                     return; 
                 }
-                const zip = new JSZip(); let filesAdded = 0;
+                
+                const zip = new JSZip(); 
+                const positiveFolder = zip.folder("积极");
+                const negativeFolder = zip.folder("消极");
+                let filesAdded = 0;
+                
                 for (const record of imageRecords) {
                     const pointInfo = allInspectionPointsData.find(p => p.id === parseInt(record.pointId));
                     const filename = generateExportFilename(record, pointInfo);
-                    zip.file(filename, record.imageBlob); filesAdded++;
+                    
+                    if (record.evidenceType === 'positive') {
+                        positiveFolder.file(filename, record.imageBlob);
+                    } else {
+                        negativeFolder.file(filename, record.imageBlob);
+                    }
+                    filesAdded++;
                 }
+                
                 if (filesAdded > 0) {
                     const content = await zip.generateAsync({type:"blob", compression: "DEFLATE", compressionOptions: {level: 6}});
                     downloadFile(content, "考察图片批量导出.zip");
-                    showStatusMessage(`成功将 ${filesAdded} 张图片打包导出!`, 'success');
-                } else showStatusMessage("没有有效图片被添加到压缩包。", 'info');
-            } catch (error) { console.error("批量导出失败:", error); showStatusMessage("批量导出图片失败: " + error.message, 'error'); } 
-            finally { bulkExportButton.disabled = false; bulkExportButton.textContent = "批量导出所有图片 (ZIP)"; }
+                    showStatusMessage(`成功将 ${filesAdded} 张图片按证据类型分类打包导出!`, 'success');
+                } else {
+                    showStatusMessage("没有有效图片被添加到压缩包。", 'info');
+                }
+            } catch (error) { 
+                console.error("批量导出失败:", error); 
+                showStatusMessage("批量导出图片失败: " + error.message, 'error'); 
+            } finally { 
+                bulkExportButton.disabled = false; 
+                bulkExportButton.textContent = "批量导出所有图片 (ZIP)"; 
+            }
         };
         
         resetDataButton.onclick = async () => { // MODIFIED: This is the kept, more complete version
@@ -1055,6 +1221,10 @@
                             loadAndRenderRecords(); 
                             document.getElementById('addL1CategorySelect').value = "";
                             document.getElementById('addL1CategorySelect').dispatchEvent(new Event('change'));
+                            // 清除关键词搜索
+                            document.getElementById('addKeywordSearch').value = '';
+                            document.getElementById('addKeywordResults').classList.add('hidden');
+                            document.getElementById('addCategorySelection').classList.remove('hidden');
                         }, 500); 
                     } catch (error) { console.error("重置数据时发生错误: ", error); showStatusMessage('重置数据失败...', 'error'); } 
                     finally { resetDataButton.disabled = false; resetDataButton.textContent = "重置所有数据"; }
@@ -1067,8 +1237,8 @@
         window.onload = async () => {
             try {
                 db = await initDB();
-                setupPointSelectors('addL1CategorySelect', 'addL2CategorySelect', 'addPointListArea', 'addSelectedPointId');
-                setupPointSelectors('editL1CategorySelect', 'editL2CategorySelect', 'editPointListArea', 'editSelectedPointId'); 
+                setupPointSelectors('addL1CategorySelect', 'addL2CategorySelect', 'addPointListArea', 'addSelectedPointId', null, null, null, 'addKeywordSearch', 'addClearKeywordButton', 'addKeywordResults', 'addKeywordPointListArea', 'addCategorySelection');
+                setupPointSelectors('editL1CategorySelect', 'editL2CategorySelect', 'editPointListArea', 'editSelectedPointId', null, null, null, 'editKeywordSearch', 'editClearKeywordButton', 'editKeywordResults', 'editKeywordPointListArea', 'editCategorySelection'); 
                 loadAndRenderRecords();
                 showStatusMessage('应用已就绪。', 'info');
             } catch (error) { console.error("应用初始化失败:", error); document.getElementById('recordsList').innerHTML = '<p>应用初始化失败...</p>'; showStatusMessage('应用初始化失败!', 'error'); }
